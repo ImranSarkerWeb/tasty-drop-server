@@ -2,11 +2,18 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 require("dotenv").config();
+const morgan = require("morgan");
 const port = process.env.port || 5000;
 
-//middleware
-app.use(cors());
+// middleware
+const corsOptions = {
+  origin: "*",
+  credentials: true,
+  optionSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
+app.use(morgan("dev"));
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h5nkbla.mongodb.net/?retryWrites=true&w=majority`;
@@ -21,8 +28,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // Database collections
 
     const reviewCollection = client.db("tastyDB").collection("reviews");
 

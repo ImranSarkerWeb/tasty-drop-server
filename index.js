@@ -31,12 +31,23 @@ async function run() {
     // Database collections
 
     const reviewCollection = client.db("tastyDB").collection("reviews");
-
+    const restaurantCollection = client.db("tastyDB").collection("dishsData");
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     });
+
+    app.get('/api/restaurants', async (req, res) => {
+      const location = req.query.location;
+      console.log(`city name: ${location}`);
+      if (!location) {
+        res.send([]);
+      }
+      const query = { location: location };
+      const result = await restaurantCollection.find(query).toArray();
+      res.send(result);
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -54,5 +65,5 @@ app.get("/", (req, res) => {
   res.send("Tasty drop on the way!");
 });
 app.listen(port, () => {
-  console.log("Tasty drop runnig at port ", port);
+  console.log("Tasty drop running at port:", port);
 });

@@ -52,13 +52,24 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const usersCollection = client.db("tastyDB").collection("users");
+    const restaurantCollection = client.db("tastyDB").collection("dishsData");    const usersCollection = client.db("tastyDB").collection("users");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     });
+
+    app.get('/api/restaurants', async (req, res) => {
+      const location = req.query.location;
+      console.log(`city name: ${location}`);
+      if (!location) {
+        res.send([]);
+      }
+      const query = { location: location };
+      const result = await restaurantCollection.find(query).toArray();
+      res.send(result);
+    })
 
     // jwt apis
     app.post('/jwt',async (req,res)=>{
@@ -94,5 +105,5 @@ app.get("/", (req, res) => {
   res.send("Tasty drop on the way toooo!");
 });
 app.listen(port, () => {
-  console.log("Tasty drop runnig at port ", port);
+  console.log("Tasty drop running at port:", port);
 });

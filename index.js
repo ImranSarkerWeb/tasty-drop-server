@@ -24,7 +24,7 @@ const verifyJwt =(req,res,next)=>{
     return res.status(401).send({error : true , message:'unauthorized access'})
   }
   const token = authorization.split(' ')[1]
-  jwt.verify(token,process.env.JWT_SECREAT,(err,decoded)=>{
+  jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
     if(err){
       return res.status(401).send({error: true , message : 'unauthorized token'})
     }
@@ -45,7 +45,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
-// console.log(process.env.JWT_SECREAT)
+// console.log(process.env.JWT_SECRET)
 
 async function run() {
   try {
@@ -74,7 +74,7 @@ async function run() {
     // jwt apis
     app.post('/jwt',async (req,res)=>{
       const email = req.body 
-      const token = jwt.sign({email},process.env.JWT_SECREAT,{ expiresIn: '1h' })
+      const token = jwt.sign({email},process.env.JWT_SECRET,{ expiresIn: '1h' })
       res.send({token})
     })
     // users apis 
@@ -87,7 +87,6 @@ async function run() {
       }
       const result = await usersCollection.insertOne(user)
       res.send(result)
-
     })
 
     // Send a ping to confirm a successful connection

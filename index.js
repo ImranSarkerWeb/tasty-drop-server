@@ -52,7 +52,8 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");    const usersCollection = client.db("tastyDB").collection("users");
+    const restaurantCollection = client.db("tastyDB").collection("dishsData");    
+    const usersCollection = client.db("tastyDB").collection("users");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();

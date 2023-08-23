@@ -24,11 +24,13 @@ const verifyJwt =(req,res,next)=>{
     return res.status(401).send({error : true , message:'unauthorized access'})
   }
   const token = authorization.split(' ')[1]
+  console.log(token)
   jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
     if(err){
       return res.status(401).send({error: true , message : 'unauthorized token'})
     }
     req.decoded = decoded
+    console.log(decoded)
     next()
   })
 }
@@ -51,9 +53,13 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
-    const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");    
+  
     const usersCollection = client.db("tastyDB").collection("users");
+    const reviewCollection = client.db("tastyDB").collection("reviews");
+    const restaurantCollection = client.db("tastyDB").collection("dishsData");   
+     const riderCollection = client.db("tastyDB").collection("rider");
+     const partnerCollection = client.db("tastyDB").collection("partner");
+     const businessCollection = client.db("tastyDB").collection("business");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -71,10 +77,59 @@ async function run() {
       const result = await restaurantCollection.find(query).toArray();
       res.send(result);
     })
+    // business apis  
+    app.post('/business',verifyJwt,async(req,res)=>{
+      const data = req.body 
+      const filter = {email : data?.email}
+      const findUserusers = await usersCollection.findOne(filter)
+      const updateDoc = {
+        $set:{
+          ...findUserusers,
+          role : 'business'
+        }
+      }
+      const result1 = await usersCollection.updateOne(filter,updateDoc)
+      const result2 = await businessCollection.insertOne(data)
+      res.send({result1,result2})
+    })
+    // rider apis 
+    app.post('/rider',verifyJwt,async(req,res)=>{
+      const data = req.body 
+      const filter = {email : data?.email}
+      const findUserusers = await usersCollection.findOne(filter)
+      const updateDoc = {
+        $set:{
+          ...findUserusers,
+          role : 'rider'
+        }
+      }
+      const result1 = await usersCollection.updateOne(filter,updateDoc)
+      const result2 = await riderCollection.insertOne(data)
+      res.send({result1,result2})
+    })
+
+    // partner apis 
+    
+    app.post('/partner',verifyJwt,async(req,res)=>{
+      const data = req.body 
+      const filter = {email : data?.email}
+      const findUserusers = await usersCollection.findOne(filter)
+      const updateDoc = {
+        $set:{
+          ...findUserusers,
+          role : 'partner'
+        }
+      }
+      const result1 = await usersCollection.updateOne(filter,updateDoc)
+      const result2 = await partnerCollection.insertOne(data)
+      res.send({result1,result2})
+    })
+    
 
     // jwt apis
     app.post('/jwt',async (req,res)=>{
       const email = req.body 
+      console.log(req.decoded)
       const token = jwt.sign({email},process.env.JWT_SECRET,{ expiresIn: '1h' })
       res.send({token})
     })
@@ -87,6 +142,10 @@ async function run() {
         return res.send({message: "already exist "})
       }
       const result = await usersCollection.insertOne(user)
+      res.send(result)
+    })
+    app.get('/users', verifyJwt,async (req,res)=>{
+      const result = await usersCollection.find().toArray()
       res.send(result)
     })
 

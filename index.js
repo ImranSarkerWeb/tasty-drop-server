@@ -94,6 +94,16 @@ async function run() {
       const result1 = await usersCollection.updateOne(filter, updateDoc);
       const result2 = await businessCollection.insertOne(data);
       res.send({ result1, result2 });
+      const isExistInRider = await riderCollection.findOne(filter);
+      const isExistInPartner = await partnerCollection.findOne(filter);
+      if (isExistInRider) {
+        const result3 = await riderCollection.deleteOne(filter);
+        res.send(result3);
+      }
+      if (isExistInPartner) {
+        const result4 = await partnerCollection.deleteOne(filter);
+        res.send(result4);
+      }
     });
     // rider apis
     app.post("/rider", verifyJwt, async (req, res) => {
@@ -109,9 +119,19 @@ async function run() {
       const result1 = await usersCollection.updateOne(filter, updateDoc);
       const result2 = await riderCollection.insertOne(data);
       res.send({ result1, result2 });
+      const isExistInBusiness = await businessCollection.findOne(filter);
+      const isExistInPartner = await partnerCollection.findOne(filter);
+      if (isExistInBusiness) {
+        const result3 = await businessCollection.deleteOne(filter);
+        res.send(result3);
+      }
+      if (isExistInPartner) {
+        const result4 = await partnerCollection.deleteOne(filter);
+        res.send(result4);
+      }
     });
 
-    // Partner/Restaurant apis 
+    // partner apis
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -126,6 +146,16 @@ async function run() {
       const result1 = await usersCollection.updateOne(filter, updateDoc);
       const result2 = await partnerCollection.insertOne(data);
       res.send({ result1, result2 });
+      const isExistInBusiness = await businessCollection.findOne(filter);
+      const isExistInRider = await riderCollection.findOne(filter);
+      if (isExistInBusiness) {
+        const result3 = await businessCollection.deleteOne(filter);
+        res.send(result3);
+      }
+      if (isExistInRider) {
+        const result4 = await riderCollection.deleteOne(filter);
+        res.send(result4);
+      }
     });
 
     // jwt apis

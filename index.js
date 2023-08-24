@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 const port = process.env.PORT || 5000;
 
@@ -18,23 +18,26 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan("dev"));
 
-const verifyJwt =(req,res,next)=>{
-  const authorization = req.headers.authorization
-  if(!authorization){
-    return res.status(401).send({error : true , message:'unauthorized access'})
+const verifyJwt = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: "unauthorized access" });
   }
-  const token = authorization.split(' ')[1]
-  console.log(token)
-  jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
-    if(err){
-      return res.status(401).send({error: true , message : 'unauthorized token'})
+  const token = authorization.split(" ")[1];
+  console.log(token);
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, message: "unauthorized token" });
     }
-    req.decoded = decoded
-    console.log(decoded)
-    next()
-  })
-}
-
+    req.decoded = decoded;
+    console.log(decoded);
+    next();
+  });
+};
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h5nkbla.mongodb.net/?retryWrites=true&w=majority`;
@@ -53,13 +56,13 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
-  
+
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");   
-     const riderCollection = client.db("tastyDB").collection("rider");
-     const partnerCollection = client.db("tastyDB").collection("partner");
-     const businessCollection = client.db("tastyDB").collection("business");
+    const restaurantCollection = client.db("tastyDB").collection("dishsData");
+    const riderCollection = client.db("tastyDB").collection("rider");
+    const partnerCollection = client.db("tastyDB").collection("partner");
+    const businessCollection = client.db("tastyDB").collection("business");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -67,7 +70,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/api/restaurants', async (req, res) => {
+    app.get("/api/restaurants", async (req, res) => {
       const location = req.query.location;
       console.log(`city name: ${location}`);
       if (!location) {
@@ -76,78 +79,79 @@ async function run() {
       const query = { location: location };
       const result = await restaurantCollection.find(query).toArray();
       res.send(result);
-    })
-    // business apis  
-    app.post('/business',verifyJwt,async(req,res)=>{
-      const data = req.body 
-      const filter = {email : data?.email}
-      const findUserusers = await usersCollection.findOne(filter)
+    });
+    // business apis
+    app.post("/business", verifyJwt, async (req, res) => {
+      const data = req.body;
+      const filter = { email: data?.email };
+      const findUserusers = await usersCollection.findOne(filter);
       const updateDoc = {
-        $set:{
+        $set: {
           ...findUserusers,
-          role : 'business'
-        }
-      }
-      const result1 = await usersCollection.updateOne(filter,updateDoc)
-      const result2 = await businessCollection.insertOne(data)
-      res.send({result1,result2})
-    })
-    // rider apis 
-    app.post('/rider',verifyJwt,async(req,res)=>{
-      const data = req.body 
-      const filter = {email : data?.email}
-      const findUserusers = await usersCollection.findOne(filter)
+          role: "business",
+        },
+      };
+      const result1 = await usersCollection.updateOne(filter, updateDoc);
+      const result2 = await businessCollection.insertOne(data);
+      res.send({ result1, result2 });
+    });
+    // rider apis
+    app.post("/rider", verifyJwt, async (req, res) => {
+      const data = req.body;
+      const filter = { email: data?.email };
+      const findUserusers = await usersCollection.findOne(filter);
       const updateDoc = {
-        $set:{
+        $set: {
           ...findUserusers,
-          role : 'rider'
-        }
-      }
-      const result1 = await usersCollection.updateOne(filter,updateDoc)
-      const result2 = await riderCollection.insertOne(data)
-      res.send({result1,result2})
-    })
+          role: "rider",
+        },
+      };
+      const result1 = await usersCollection.updateOne(filter, updateDoc);
+      const result2 = await riderCollection.insertOne(data);
+      res.send({ result1, result2 });
+    });
 
-    // partner apis 
-    
-    app.post('/partner',verifyJwt,async(req,res)=>{
-      const data = req.body 
-      const filter = {email : data?.email}
-      const findUserusers = await usersCollection.findOne(filter)
+    // Partner/Restaurant apis 
+
+    app.post("/partner", verifyJwt, async (req, res) => {
+      const data = req.body;
+      const filter = { email: data?.email };
+      const findUserusers = await usersCollection.findOne(filter);
       const updateDoc = {
-        $set:{
+        $set: {
           ...findUserusers,
-          role : 'partner'
-        }
-      }
-      const result1 = await usersCollection.updateOne(filter,updateDoc)
-      const result2 = await partnerCollection.insertOne(data)
-      res.send({result1,result2})
-    })
-    
+          role: "partner",
+        },
+      };
+      const result1 = await usersCollection.updateOne(filter, updateDoc);
+      const result2 = await partnerCollection.insertOne(data);
+      res.send({ result1, result2 });
+    });
 
     // jwt apis
-    app.post('/jwt',async (req,res)=>{
-      const email = req.body 
-      console.log(req.decoded)
-      const token = jwt.sign({email},process.env.JWT_SECRET,{ expiresIn: '1h' })
-      res.send({token})
-    })
-    // users apis 
-    app.post('/users',async(req,res)=>{
-      const user = req.body
-      console.log(user)
-      const findEmail = await usersCollection.findOne({email : user.email })
-      if(user.email == findEmail?.email){
-        return res.send({message: "already exist "})
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+      console.log(req.decoded);
+      const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
+    // users apis
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const findEmail = await usersCollection.findOne({ email: user.email });
+      if (user.email == findEmail?.email) {
+        return res.send({ message: "already exist " });
       }
-      const result = await usersCollection.insertOne(user)
-      res.send(result)
-    })
-    app.get('/users', verifyJwt,async (req,res)=>{
-      const result = await usersCollection.find().toArray()
-      res.send(result)
-    })
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+    app.get("/users", verifyJwt, async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

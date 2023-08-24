@@ -140,11 +140,6 @@ async function run() {
       }
     });
 
-    app.post("/partners", verifyJwt, async (req, res) => {
-      const data = req.body;
-      console.log("below");
-      console.log(data);
-    });
     // partner apis
 
     app.post("/partner", verifyJwt, async (req, res) => {

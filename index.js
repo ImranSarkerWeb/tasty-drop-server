@@ -39,7 +39,7 @@ const verifyJwt = (req, res, next) => {
   });
 };
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h5nkbla.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -82,8 +82,13 @@ async function run() {
     });
 
     // Single restaurant data API
+    app.get('/singleRestaurant/:id', async(req, res) =>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await restaurantCollection.findOne(query);
+      res.send(result)
+    })    
 
-    
     // business apis
     app.post("/business", verifyJwt, async (req, res) => {
       const data = req.body;

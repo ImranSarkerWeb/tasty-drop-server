@@ -80,6 +80,10 @@ async function run() {
       const result = await restaurantCollection.find(query).toArray();
       res.send(result);
     });
+
+    // Single restaurant data API
+
+    
     // business apis
     app.post("/business", verifyJwt, async (req, res) => {
       const data = req.body;

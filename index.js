@@ -204,6 +204,14 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+    app.get('/userRole',verifyJwt,async (req,res)=>{
+      const {email} = req.query
+      const options = {
+        projection: {  role: 1 },
+      }
+      const result = await usersCollection.findOne({email: email},options)
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

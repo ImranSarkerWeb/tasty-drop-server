@@ -81,6 +81,12 @@ async function run() {
       res.send(result);
     });
 
+    //Search field API
+    app.get("/api/all-restaurants", async (req, res) => {
+      const result = await restaurantCollection.find().toArray();
+      res.send(result);
+    });
+
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;

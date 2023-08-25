@@ -172,9 +172,10 @@ async function run() {
         // Add the entire data object to the menu array
         if (partnersData) {
           const updatedMenu = [...(partnersData.menu || []), data];
-          await partnerCollection.updateOne(filter, {
+          const result5= await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
           });
+          res.send(result5)
         }
       }
     });

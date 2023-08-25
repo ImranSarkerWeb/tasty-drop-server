@@ -39,7 +39,7 @@ const verifyJwt = (req, res, next) => {
   });
 };
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h5nkbla.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -80,6 +80,15 @@ async function run() {
       const result = await restaurantCollection.find(query).toArray();
       res.send(result);
     });
+
+    // Single restaurant data API
+    app.get("/singleRestaurant/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await restaurantCollection.findOne(query);
+      res.send(result);
+    });
+
     // business apis
     app.post("/business", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -137,24 +146,36 @@ async function run() {
       const data = req.body;
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);
-      const updateDoc = {
-        $set: {
-          ...findUserusers,
-          role: "partner",
-        },
-      };
-      const result1 = await usersCollection.updateOne(filter, updateDoc);
-      const result2 = await partnerCollection.insertOne(data);
-      res.send({ result1, result2 });
-      const isExistInBusiness = await businessCollection.findOne(filter);
-      const isExistInRider = await riderCollection.findOne(filter);
-      if (isExistInBusiness) {
-        const result3 = await businessCollection.deleteOne(filter);
-        res.send(result3);
-      }
-      if (isExistInRider) {
-        const result4 = await riderCollection.deleteOne(filter);
-        res.send(result4);
+      if (data.outletName) {
+        const updateDoc = {
+          $set: {
+            ...findUserusers,
+            role: "partner",
+          },
+        };
+        const result1 = await usersCollection.updateOne(filter, updateDoc);
+        const result2 = await partnerCollection.insertOne(data);
+        res.send({ result1, result2 });
+        const isExistInBusiness = await businessCollection.findOne(filter);
+        const isExistInRider = await riderCollection.findOne(filter);
+        if (isExistInBusiness) {
+          const result3 = await businessCollection.deleteOne(filter);
+          res.send(result3);
+        }
+        if (isExistInRider) {
+          const result4 = await riderCollection.deleteOne(filter);
+          res.send(result4);
+        }
+      } else {
+        const partnersData = await partnerCollection.findOne(filter);
+
+        // Add the entire data object to the menu array
+        if (partnersData) {
+          const updatedMenu = [...(partnersData.menu || []), data];
+          await partnerCollection.updateOne(filter, {
+            $set: { menu: updatedMenu },
+          });
+        }
       }
     });
 

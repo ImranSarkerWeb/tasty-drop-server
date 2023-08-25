@@ -140,9 +140,9 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner apis for restaurants
 
-    app.post("/partner", verifyJwt, async (req, res) => {
+    app.post("/partner", async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);

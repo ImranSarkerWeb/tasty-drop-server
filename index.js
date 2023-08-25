@@ -81,6 +81,12 @@ async function run() {
       res.send(result);
     });
 
+    //Search field API
+    app.get("/api/all-restaurants", async (req, res) => {
+      const result = await restaurantCollection.find().toArray();
+      res.send(result);
+    });
+
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
@@ -172,9 +178,10 @@ async function run() {
         // Add the entire data object to the menu array
         if (partnersData) {
           const updatedMenu = [...(partnersData.menu || []), data];
-          await partnerCollection.updateOne(filter, {
+          const result5= await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
           });
+          res.send(result5)
         }
       }
     });

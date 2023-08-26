@@ -146,9 +146,9 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner apis for restaurants
 
-    app.post("/partner", verifyJwt, async (req, res) => {
+    app.post("/partner", async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);
@@ -210,6 +210,16 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+
+    // Api for geting user roles
+    app.get('/userRole',verifyJwt,async (req,res)=>{
+      const {email} = req.query
+      const options = {
+        projection: {  role: 1 },
+      }
+      const result = await usersCollection.findOne({email: email},options)
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

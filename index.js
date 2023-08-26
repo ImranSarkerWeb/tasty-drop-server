@@ -217,7 +217,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Tasty drop on the way toooo!");
+  res.send("Tasty drop on the way!");
 });
 app.listen(port, () => {
   console.log("Tasty drop running at port:", port);

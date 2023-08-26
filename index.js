@@ -81,6 +81,12 @@ async function run() {
       res.send(result);
     });
 
+    //Search field API
+    app.get("/api/all-restaurants", async (req, res) => {
+      const result = await restaurantCollection.find().toArray();
+      res.send(result);
+    });
+
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
@@ -204,6 +210,14 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+    app.get('/userRole',verifyJwt,async (req,res)=>{
+      const {email} = req.query
+      const options = {
+        projection: {  role: 1 },
+      }
+      const result = await usersCollection.findOne({email: email},options)
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

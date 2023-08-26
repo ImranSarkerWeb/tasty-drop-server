@@ -151,11 +151,11 @@ async function run() {
     app.post("/partner", async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
-      const findUserusers = await usersCollection.findOne(filter);
+      const findUser = await usersCollection.findOne(filter);
       if (data.outletName) {
         const updateDoc = {
           $set: {
-            ...findUserusers,
+            ...findUser,
             role: "partner",
           },
         };
@@ -178,10 +178,10 @@ async function run() {
         // Add the entire data object to the menu array
         if (partnersData) {
           const updatedMenu = [...(partnersData.menu || []), data];
-          const result5= await partnerCollection.updateOne(filter, {
+          const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
           });
-          res.send(result5)
+          res.send(result5);
         }
       }
     });
@@ -212,14 +212,14 @@ async function run() {
     });
 
     // Api for geting user roles
-    app.get('/userRole',verifyJwt,async (req,res)=>{
-      const {email} = req.query
+    app.get("/userRole", verifyJwt, async (req, res) => {
+      const { email } = req.query;
       const options = {
-        projection: {  role: 1 },
-      }
-      const result = await usersCollection.findOne({email: email},options)
-      res.send(result)
-    })
+        projection: { role: 1 },
+      };
+      const result = await usersCollection.findOne({ email: email }, options);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -234,7 +234,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Tasty drop on the way toooo!");
+  res.send("Tasty drop on the way!");
 });
 app.listen(port, () => {
   console.log("Tasty drop running at port:", port);

@@ -210,6 +210,8 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+
+    // Api for geting user roles
     app.get('/userRole',verifyJwt,async (req,res)=>{
       const {email} = req.query
       const options = {

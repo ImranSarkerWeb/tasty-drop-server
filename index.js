@@ -59,9 +59,6 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    // OLD RESTAURANT COLLECTION WILL BE REMOVED SOON!!! 
-    const restaurantCollection = client.db("tastyDB").collection("dishsData"); 
-
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -71,18 +68,6 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-
-    // OLD Api for getting all restaurant information //
-    // app.get("/api/restaurants", async (req, res) => {
-    //   const location = req.query.location;
-    //   console.log(`city name: ${location}`);
-    //   if (!location) {
-    //     res.send([]);
-    //   }
-    //   const query = { location: location };
-    //   const result = await restaurantCollection.find(query).toArray();
-    //   res.send(result);
-    // });
 
     // Api for getting all restaurant information from Partner Collection
     app.get("/api/restaurants", async (req, res) => {

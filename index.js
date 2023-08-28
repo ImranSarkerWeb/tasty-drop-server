@@ -26,7 +26,7 @@ const verifyJwt = (req, res, next) => {
       .send({ error: true, message: "unauthorized access" });
   }
   const token = authorization.split(" ")[1];
-  console.log(token);
+  // console.log(token);
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       return res
@@ -34,7 +34,7 @@ const verifyJwt = (req, res, next) => {
         .send({ error: true, message: "unauthorized token" });
     }
     req.decoded = decoded;
-    console.log(decoded);
+    // console.log(decoded);
     next();
   });
 };
@@ -59,6 +59,7 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
+    const restaurantCollection = client.db("tastyDB").collection("dishsData");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -72,26 +73,20 @@ async function run() {
       res.send(result);
     });
 
-    // Api for getting all restaurant information from Partner Collection
     app.get("/api/restaurants", async (req, res) => {
       const location = req.query.location;
-      console.log(`city name: ${location}`);
+      // console.log(`city name: ${location}`);
       if (!location) {
         res.send([]);
       }
-      const query = { locationOfOutlet: location };
-      const result = await partnerCollection.find(query).toArray();
+      const query = { location: location };
+      const result = await restaurantCollection.find(query).toArray();
       res.send(result);
     });
 
-    app.get("/restaurants", async (req, res) => {
-      const result = await partnerCollection.find().toArray();
-      res.send(result);
-    });
-
-    // Search field API
-    app.get("/api/searched-restaurants", async (req, res) => {
-      const result = await partnerCollection.find().toArray();
+    //Search field API
+    app.get("/api/all-restaurants", async (req, res) => {
+      const result = await restaurantCollection.find().toArray();
       res.send(result);
     });
 
@@ -99,7 +94,7 @@ async function run() {
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await partnerCollection.findOne(query);
+      const result = await restaurantCollection.findOne(query);
       res.send(result);
     });
 
@@ -154,16 +149,16 @@ async function run() {
       }
     });
 
-    // Partner apis for restaurants
+    // partner apis
 
-    app.post("/partner", async (req, res) => {
+    app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
-      const findUser = await usersCollection.findOne(filter);
+      const findUserusers = await usersCollection.findOne(filter);
       if (data.outletName) {
         const updateDoc = {
           $set: {
-            ...findUser,
+            ...findUserusers,
             role: "partner",
           },
         };
@@ -186,10 +181,10 @@ async function run() {
         // Add the entire data object to the menu array
         if (partnersData) {
           const updatedMenu = [...(partnersData.menu || []), data];
-          const result5 = await partnerCollection.updateOne(filter, {
+          const result5= await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
           });
-          res.send(result5);
+          res.send(result5)
         }
       }
     });
@@ -197,7 +192,7 @@ async function run() {
     // jwt apis
     app.post("/jwt", async (req, res) => {
       const email = req.body;
-      console.log(req.decoded);
+      // console.log(req.decoded);
       const token = jwt.sign({ email }, process.env.JWT_SECRET, {
         expiresIn: "1h",
       });
@@ -206,7 +201,7 @@ async function run() {
     // users apis
     app.post("/users", async (req, res) => {
       const user = req.body;
-      console.log(user);
+      // console.log(user);
       const findEmail = await usersCollection.findOne({ email: user.email });
       if (user.email == findEmail?.email) {
         return res.send({ message: "already exist " });
@@ -218,16 +213,14 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
-
-    // Api for geting user roles
-    app.get("/userRole", verifyJwt, async (req, res) => {
-      const { email } = req.query;
+    app.get('/userRole',verifyJwt,async (req,res)=>{
+      const {email} = req.query
       const options = {
-        projection: { role: 1 },
-      };
-      const result = await usersCollection.findOne({ email: email }, options);
-      res.send(result);
-    });
+        projection: {  role: 1 },
+      }
+      const result = await usersCollection.findOne({email: email},options)
+      res.send(result)
+    })
 
 
     // loaction apis 
@@ -265,7 +258,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Tasty drop on the way!");
+  res.send("Tasty drop on the way toooo!");
 });
 app.listen(port, () => {
   console.log("Tasty drop running at port:", port);

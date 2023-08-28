@@ -59,7 +59,6 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -73,20 +72,26 @@ async function run() {
       res.send(result);
     });
 
+    // Api for getting all restaurant information from Partner Collection
     app.get("/api/restaurants", async (req, res) => {
       const location = req.query.location;
       console.log(`city name: ${location}`);
       if (!location) {
         res.send([]);
       }
-      const query = { location: location };
-      const result = await restaurantCollection.find(query).toArray();
+      const query = { locationOfOutlet: location };
+      const result = await partnerCollection.find(query).toArray();
       res.send(result);
     });
 
-    //Search field API
-    app.get("/api/all-restaurants", async (req, res) => {
-      const result = await restaurantCollection.find().toArray();
+    app.get("/restaurants", async (req, res) => {
+      const result = await partnerCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Search field API
+    app.get("/api/searched-restaurants", async (req, res) => {
+      const result = await partnerCollection.find().toArray();
       res.send(result);
     });
 
@@ -94,7 +99,7 @@ async function run() {
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await restaurantCollection.findOne(query);
+      const result = await partnerCollection.findOne(query);
       res.send(result);
     });
 
@@ -149,16 +154,16 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner apis for restaurants
 
-    app.post("/partner", verifyJwt, async (req, res) => {
+    app.post("/partner", async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
-      const findUserusers = await usersCollection.findOne(filter);
+      const findUser = await usersCollection.findOne(filter);
       if (data.outletName) {
         const updateDoc = {
           $set: {
-            ...findUserusers,
+            ...findUser,
             role: "partner",
           },
         };
@@ -181,10 +186,10 @@ async function run() {
         // Add the entire data object to the menu array
         if (partnersData) {
           const updatedMenu = [...(partnersData.menu || []), data];
-          const result5= await partnerCollection.updateOne(filter, {
+          const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
           });
-          res.send(result5)
+          res.send(result5);
         }
       }
     });
@@ -213,14 +218,16 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
-    app.get('/userRole',verifyJwt,async (req,res)=>{
-      const {email} = req.query
+
+    // Api for geting user roles
+    app.get("/userRole", verifyJwt, async (req, res) => {
+      const { email } = req.query;
       const options = {
-        projection: {  role: 1 },
-      }
-      const result = await usersCollection.findOne({email: email},options)
-      res.send(result)
-    })
+        projection: { role: 1 },
+      };
+      const result = await usersCollection.findOne({ email: email }, options);
+      res.send(result);
+    });
 
 
     // loaction apis 
@@ -258,7 +265,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Tasty drop on the way toooo!");
+  res.send("Tasty drop on the way!");
 });
 app.listen(port, () => {
   console.log("Tasty drop running at port:", port);

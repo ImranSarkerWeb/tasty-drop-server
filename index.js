@@ -63,6 +63,9 @@ async function run() {
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
+    const divisionCollection = client.db("tastyDB").collection("division");
+    const districtsCollection = client.db("tastyDB").collection("districts");
+    const upazilasCollection = client.db("tastyDB").collection("upazilas");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -216,6 +219,29 @@ async function run() {
         projection: {  role: 1 },
       }
       const result = await usersCollection.findOne({email: email},options)
+      res.send(result)
+    })
+
+
+    // loaction apis 
+    app.get('/division',async(req,res)=>{
+      const result = await divisionCollection.find().toArray()
+      res.send(result)
+    })
+    app.get("/districts",async (req,res)=>{
+      const {data} = req.query
+      const filter = {
+        division_id : data
+      }
+      const result = await districtsCollection.find(filter).toArray()
+      res.send(result)
+    })
+    app.get("/upazila",async (req,res)=>{
+      const {data} = req.query
+      const filter = {
+        district_id : data
+      }
+      const result = await upazilasCollection.find(filter).toArray()
       res.send(result)
     })
 

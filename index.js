@@ -75,12 +75,12 @@ async function run() {
 
     app.get("/api/restaurants", async (req, res) => {
       const location = req.query.location;
-      // console.log(`city name: ${location}`);
+      console.log(`city name: ${location}`);
       if (!location) {
         res.send([]);
       }
-      const query = { location: location };
-      const result = await restaurantCollection.find(query).toArray();
+      const query = { locationOfOutlet: location }; //solve it line
+      const result = await partnerCollection.find(query).toArray(); //solve it line
       res.send(result);
     });
 
@@ -94,7 +94,7 @@ async function run() {
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await restaurantCollection.findOne(query);
+      const result = await partnerCollection.findOne(query); //solve it line 
       res.send(result);
     });
 

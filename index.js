@@ -151,6 +151,12 @@ async function run() {
 
     // partner apis
 
+    // Api for getting restaurant data
+    app.get("/restaurants", async (req, res) => {
+      const result = await partnerCollection.find().toArray();
+      res.send(result);
+    });
+
     //& Getting restaurant data by email address
     // app.get('/restaurant-data', async (req, res) => {
     //   const email = req.query.email;

@@ -167,7 +167,7 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner Apis
 
     // Api for getting restaurant data
     app.get("/restaurants", async (req, res) => {
@@ -175,14 +175,6 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting restaurant data by email address
-    // app.get('/restaurant-data', async (req, res) => {
-    //   const email = req.query.email;
-    //   const filter = { email: email };
-    //   const partner = await partnerCollection.findOne(filter);
-    //   const partnerMenu = partner.menu.map(item => item)
-    //   req.send([partnerMenu]);
-    // })
     //& Getting restaurant data by email address
     app.get("/restaurant-data", async (req, res) => {
       try {

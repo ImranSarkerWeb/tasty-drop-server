@@ -79,8 +79,8 @@ async function run() {
       if (!location) {
         res.send([]);
       }
-      const query = { locationOfOutlet: location }; //solve it line
-      const result = await partnerCollection.find(query).toArray(); //solve it line
+      const query = {"locations.division" : location}
+      const result = await partnerCollection.find(query).toArray()
       res.send(result);
     });
 
@@ -180,6 +180,7 @@ async function run() {
 
         // Add the entire data object to the menu array
         if (partnersData) {
+          data._id = new ObjectId
           const updatedMenu = [...(partnersData.menu || []), data];
           const result5= await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },

@@ -59,7 +59,6 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -73,28 +72,47 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/api/restaurants", async (req, res) => {
-      const location = req.query.location;
-      console.log(`city name: ${location}`);
-      if (!location) {
-        res.send([]);
-      }
-      const query = {"locations.division" : location}
-      const result = await partnerCollection.find(query).toArray()
-      res.send(result);
-    });
+    //dynamic city based restaurant api call
+    // app.get("/api/restaurants", async (req, res) => {
+    //   const location = req.query.location;
+    //   console.log(`city name: ${location}`);
+    //   if (!location) {
+    //     res.send([]);
+    //   }
+    //   // const query = { locationOfOutlet: location };
+    //   const query = {"locations.district": location};
+    //   const result = await partnerCollection.find(query).toArray();
+    //   res.send(result);
+    // });
 
-    //Search field API
-    app.get("/api/all-restaurants", async (req, res) => {
-      const result = await restaurantCollection.find().toArray();
-      res.send(result);
+    //Location based api call
+    app.get("/api/searched-location/:searchQuery", async (req, res) => {
+      try {
+        const searchQuery = req.params.searchQuery;
+        console.log("Received searchQuery:", searchQuery); 
+
+        //I used $or operator to query for documents where any of the specified fields match the searchQuery.
+        //I used regex operator to perform case insensitive search.
+        const result = await partnerCollection.find({
+          $or: [
+            { "locations.division": { $regex: searchQuery, $options: "i" } },
+            { "locations.district": { $regex: searchQuery, $options: "i" } },
+            { "locations.upazila": { $regex: searchQuery, $options: "i" } },
+          ],
+        }).toArray();
+
+        res.json(result);
+      }
+      catch (error) {
+        res.status(500).json({ error: "Error fetching location data from partner-collection" });
+      }
     });
 
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await partnerCollection.findOne(query); //solve it line 
+      const result = await partnerCollection.findOne(query);
       res.send(result);
     });
 
@@ -149,7 +167,29 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner Apis
+
+    // Api for getting restaurant data
+    app.get("/restaurants", async (req, res) => {
+      const result = await partnerCollection.find().toArray();
+      res.send(result);
+    });
+
+    //& Getting restaurant data by email address
+    app.get("/restaurant-data", async (req, res) => {
+      try {
+        const email = req.query.email;
+        console.log(email)
+        const partner = await partnerCollection.findOne({ email: email });
+        if (!partner) {
+          return res.status(404).json({ error: "Partner not found" });
+        }
+        res.send(partner.menu);
+      } catch (error) {
+        console.error("Error fetching restaurant data:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -182,10 +222,10 @@ async function run() {
         if (partnersData) {
           data._id = new ObjectId
           const updatedMenu = [...(partnersData.menu || []), data];
-          const result5= await partnerCollection.updateOne(filter, {
+          const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
           });
-          res.send(result5)
+          res.send(result5);
         }
       }
     });
@@ -214,37 +254,36 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
-    app.get('/userRole',verifyJwt,async (req,res)=>{
-      const {email} = req.query
+    app.get("/userRole", verifyJwt, async (req, res) => {
+      const { email } = req.query;
       const options = {
-        projection: {  role: 1 },
-      }
-      const result = await usersCollection.findOne({email: email},options)
-      res.send(result)
-    })
+        projection: { role: 1 },
+      };
+      const result = await usersCollection.findOne({ email: email }, options);
+      res.send(result);
+    });
 
-
-    // loaction apis 
-    app.get('/division',async(req,res)=>{
-      const result = await divisionCollection.find().toArray()
-      res.send(result)
-    })
-    app.get("/districts",async (req,res)=>{
-      const {data} = req.query
+    // loaction apis
+    app.get("/division", async (req, res) => {
+      const result = await divisionCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/districts", async (req, res) => {
+      const { data } = req.query;
       const filter = {
-        division_id : data
-      }
-      const result = await districtsCollection.find(filter).toArray()
-      res.send(result)
-    })
-    app.get("/upazila",async (req,res)=>{
-      const {data} = req.query
+        division_id: data,
+      };
+      const result = await districtsCollection.find(filter).toArray();
+      res.send(result);
+    });
+    app.get("/upazila", async (req, res) => {
+      const { data } = req.query;
       const filter = {
-        district_id : data
-      }
-      const result = await upazilasCollection.find(filter).toArray()
-      res.send(result)
-    })
+        district_id: data,
+      };
+      const result = await upazilasCollection.find(filter).toArray();
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

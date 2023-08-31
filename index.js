@@ -59,7 +59,7 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");
+    // const restaurantCollection = client.db("tastyDB").collection("dishsData");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -85,7 +85,7 @@ async function run() {
       res.send(result);
     });
 
-    //Search field API
+    // Search field API Based on Location
     app.get("/api/searched-location/:searchQuery", async (req, res) => {
       try {
         const searchQuery = req.params.searchQuery;
@@ -167,7 +167,7 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner Apis
 
     // Api for getting restaurant data
     app.get("/restaurants", async (req, res) => {
@@ -175,14 +175,6 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting restaurant data by email address
-    // app.get('/restaurant-data', async (req, res) => {
-    //   const email = req.query.email;
-    //   const filter = { email: email };
-    //   const partner = await partnerCollection.findOne(filter);
-    //   const partnerMenu = partner.menu.map(item => item)
-    //   req.send([partnerMenu]);
-    // })
     //& Getting restaurant data by email address
     app.get("/restaurant-data", async (req, res) => {
       try {

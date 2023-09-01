@@ -59,7 +59,6 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    const restaurantCollection = client.db("tastyDB").collection("dishsData");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -73,28 +72,47 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/api/restaurants", async (req, res) => {
-      const location = req.query.location;
-      console.log(`city name: ${location}`);
-      if (!location) {
-        res.send([]);
-      }
-      const query = { locationOfOutlet: location }; //solve it line
-      const result = await partnerCollection.find(query).toArray(); //solve it line
-      res.send(result);
-    });
+    //dynamic city based restaurant api call
+    // app.get("/api/restaurants", async (req, res) => {
+    //   const location = req.query.location;
+    //   console.log(`city name: ${location}`);
+    //   if (!location) {
+    //     res.send([]);
+    //   }
+    //   // const query = { locationOfOutlet: location };
+    //   const query = {"locations.district": location};
+    //   const result = await partnerCollection.find(query).toArray();
+    //   res.send(result);
+    // });
 
-    //Search field API
-    app.get("/api/all-restaurants", async (req, res) => {
-      const result = await restaurantCollection.find().toArray();
-      res.send(result);
+    //Location based api call
+    app.get("/api/searched-location/:searchQuery", async (req, res) => {
+      try {
+        const searchQuery = req.params.searchQuery;
+        console.log("Received searchQuery:", searchQuery); 
+
+        //I used $or operator to query for documents where any of the specified fields match the searchQuery.
+        //I used regex operator to perform case insensitive search.
+        const result = await partnerCollection.find({
+          $or: [
+            { "locations.division": { $regex: searchQuery, $options: "i" } },
+            { "locations.district": { $regex: searchQuery, $options: "i" } },
+            { "locations.upazila": { $regex: searchQuery, $options: "i" } },
+          ],
+        }).toArray();
+
+        res.json(result);
+      }
+      catch (error) {
+        res.status(500).json({ error: "Error fetching location data from partner-collection" });
+      }
     });
 
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await partnerCollection.findOne(query); //solve it line
+      const result = await partnerCollection.findOne(query);
       res.send(result);
     });
 
@@ -149,7 +167,7 @@ async function run() {
       }
     });
 
-    // partner apis
+    // Partner Apis
 
     // Api for getting restaurant data
     app.get("/restaurants", async (req, res) => {
@@ -157,14 +175,6 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting restaurant data by email address
-    // app.get('/restaurant-data', async (req, res) => {
-    //   const email = req.query.email;
-    //   const filter = { email: email };
-    //   const partner = await partnerCollection.findOne(filter);
-    //   const partnerMenu = partner.menu.map(item => item)
-    //   req.send([partnerMenu]);
-    // })
     //& Getting restaurant data by email address
     app.get("/restaurant-data", async (req, res) => {
       try {

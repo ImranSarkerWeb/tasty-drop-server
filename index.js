@@ -89,22 +89,27 @@ async function run() {
     app.get("/api/searched-location/:searchQuery", async (req, res) => {
       try {
         const searchQuery = req.params.searchQuery;
-        console.log("Received searchQuery:", searchQuery); 
+        console.log("Received searchQuery:", searchQuery);
 
         //I used $or operator to query for documents where any of the specified fields match the searchQuery.
         //I used regex operator to perform case insensitive search.
-        const result = await partnerCollection.find({
-          $or: [
-            { "locations.division": { $regex: searchQuery, $options: "i" } },
-            { "locations.district": { $regex: searchQuery, $options: "i" } },
-            { "locations.upazila": { $regex: searchQuery, $options: "i" } },
-          ],
-        }).toArray();
+        const result = await partnerCollection
+          .find({
+            $or: [
+              { "locations.division": { $regex: searchQuery, $options: "i" } },
+              { "locations.district": { $regex: searchQuery, $options: "i" } },
+              { "locations.upazila": { $regex: searchQuery, $options: "i" } },
+            ],
+          })
+          .toArray();
 
         res.json(result);
-      }
-      catch (error) {
-        res.status(500).json({ error: "Error fetching location data from partner-collection" });
+      } catch (error) {
+        res
+          .status(500)
+          .json({
+            error: "Error fetching location data from partner-collection",
+          });
       }
     });
 
@@ -179,7 +184,7 @@ async function run() {
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
-        console.log(email)
+        console.log(email);
         const partner = await partnerCollection.findOne({ email: email });
         if (!partner) {
           return res.status(404).json({ error: "Partner not found" });

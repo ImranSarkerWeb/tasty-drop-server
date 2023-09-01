@@ -59,7 +59,6 @@ async function run() {
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
-    // const restaurantCollection = client.db("tastyDB").collection("dishsData");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
     const businessCollection = client.db("tastyDB").collection("business");
@@ -74,18 +73,19 @@ async function run() {
     });
 
     //dynamic city based restaurant api call
-    app.get("/api/restaurants", async (req, res) => {
-      const location = req.query.location;
-      console.log(`city name: ${location}`);
-      if (!location) {
-        res.send([]);
-      }
-      const query = { locationOfOutlet: location };
-      const result = await partnerCollection.find(query).toArray();
-      res.send(result);
-    });
+    // app.get("/api/restaurants", async (req, res) => {
+    //   const location = req.query.location;
+    //   console.log(`city name: ${location}`);
+    //   if (!location) {
+    //     res.send([]);
+    //   }
+    //   // const query = { locationOfOutlet: location };
+    //   const query = {"locations.district": location};
+    //   const result = await partnerCollection.find(query).toArray();
+    //   res.send(result);
+    // });
 
-    // Search field API Based on Location
+    //Location based api call
     app.get("/api/searched-location/:searchQuery", async (req, res) => {
       try {
         const searchQuery = req.params.searchQuery;

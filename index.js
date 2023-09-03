@@ -180,7 +180,7 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting restaurant data by email address
+    //& Getting all restaurant data by email address
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
@@ -195,6 +195,8 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+    //& Api for getting signle menu items
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;

@@ -195,7 +195,11 @@ async function run() {
       const data = req.body;
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);
+    
       if (data.outletName) {
+        // Set a unique _id for the partnerCollection document
+        data._id = new ObjectId(); // Generate a new ObjectId
+    
         const updateDoc = {
           $set: {
             ...findUserusers,
@@ -205,6 +209,7 @@ async function run() {
         const result1 = await usersCollection.updateOne(filter, updateDoc);
         const result2 = await partnerCollection.insertOne(data);
         res.send({ result1, result2 });
+    
         const isExistInBusiness = await businessCollection.findOne(filter);
         const isExistInRider = await riderCollection.findOne(filter);
         if (isExistInBusiness) {
@@ -217,9 +222,13 @@ async function run() {
         }
       } else {
         const partnersData = await partnerCollection.findOne(filter);
-
+    
         // Add the entire data object to the menu array
         if (partnersData) {
+          // Generate a new ObjectId for the menu item
+          const menuItemId = new ObjectId();
+          data._id = menuItemId;
+    
           const updatedMenu = [...(partnersData.menu || []), data];
           const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
@@ -227,7 +236,7 @@ async function run() {
           res.send(result5);
         }
       }
-    });
+    });    
 
     // jwt apis
     app.post("/jwt", async (req, res) => {

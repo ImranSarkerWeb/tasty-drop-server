@@ -18,6 +18,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan("dev"));
 
+
 const verifyJwt = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {

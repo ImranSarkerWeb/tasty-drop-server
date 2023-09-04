@@ -108,11 +108,9 @@ async function run() {
 
         res.json(result);
       } catch (error) {
-        res
-          .status(500)
-          .json({
-            error: "Error fetching location data from partner-collection",
-          });
+        res.status(500).json({
+          error: "Error fetching location data from partner-collection",
+        });
       }
     });
 
@@ -183,7 +181,7 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting all restaurant data by email address
+    //& Getting all menu's from a restaurant by partner email
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
@@ -199,7 +197,26 @@ async function run() {
       }
     });
 
-    //& Api for getting signle menu items
+    //& Api for deleting signle menu items by id
+    app.delete("/delete-menu-item/:email/:menuItemId", async (req, res) => {
+      try {
+        const { email, menuItemId } = req.params;
+
+        const result = await partnerCollection.updateOne(
+          { email },
+          { $pull: { menu: { _id: new ObjectId(menuItemId) } } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
+
+        res.status(200).json({ message: "Menu item deleted successfully!" });
+      } catch (error) {
+        console.error("Error deleting menu item:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -233,7 +250,7 @@ async function run() {
           //& Generate a new ObjectId for the menu item
           const menuItemId = new ObjectId();
           data._id = menuItemId;
-    
+
           const updatedMenu = [...(partnersData.menu || []), data];
           const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
@@ -297,33 +314,32 @@ async function run() {
       const result = await upazilasCollection.find(filter).toArray();
       res.send(result);
     });
-    // customer apis 
-    app.post('/customer',verifyJwt,async (req,res)=>{
-      const data = req.body
-      console.log(data)
-      const filter = {email : data?.email}
-      const isExist = await customerCollection.findOne(filter)
-      if(isExist){
-        const updateDocs={
-          $set:{
-            ...data
-          }
-        }
-        const result1 = await customerCollection.updateOne(filter,updateDocs)
-        res.send(result1)
+    // customer apis
+    app.post("/customer", verifyJwt, async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const filter = { email: data?.email };
+      const isExist = await customerCollection.findOne(filter);
+      if (isExist) {
+        const updateDocs = {
+          $set: {
+            ...data,
+          },
+        };
+        const result1 = await customerCollection.updateOne(filter, updateDocs);
+        res.send(result1);
+      } else {
+        const result2 = await customerCollection.insertOne(data);
+        res.send(result2);
       }
-      else{
-        const result2 = await customerCollection.insertOne(data)
-        res.send(result2)
-      }
-    })
-    app.get('/customer',verifyJwt,async (req,res)=>{
-      const email = req.query.email
-      console.log(email)
-      const filter = {email : email}
-      const result = await customerCollection.findOne(filter)
-      res.send(result) 
-    })
+    });
+    app.get("/customer", verifyJwt, async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const filter = { email: email };
+      const result = await customerCollection.findOne(filter);
+      res.send(result);
+    });
     // give all menu
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
@@ -342,7 +358,6 @@ async function run() {
     const store_passwd = process.env.STORE_PASSWORD;
     const is_live = false;
     app.get("/payment", (req, res) => {
-      
       const data = {
         total_amount: 100,
         currency: "BDT",

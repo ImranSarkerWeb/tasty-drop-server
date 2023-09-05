@@ -19,7 +19,6 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan("dev"));
 
-
 const verifyJwt = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
@@ -202,6 +201,15 @@ async function run() {
       try {
         const { email, menuItemId } = req.params;
 
+        // Find the item before deleting it
+        const foundMenuItem = await partnerCollection.findOne({
+          email,
+          "menu._id": new ObjectId(menuItemId),
+        });
+
+        if (!foundMenuItem) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
         const result = await partnerCollection.updateOne(
           { email },
           { $pull: { menu: { _id: new ObjectId(menuItemId) } } }
@@ -211,12 +219,15 @@ async function run() {
           return res.status(404).json({ error: "Menu item not found" });
         }
 
-        res.status(200).json({ message: "Menu item deleted successfully!" });
+        res.status(200).json({ message: "Menu item deleted successfully!", deletedItem: foundMenuItem._id });
       } catch (error) {
         console.error("Error deleting menu item:", error);
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+    //& Api for updating single menu items
+    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {});
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;

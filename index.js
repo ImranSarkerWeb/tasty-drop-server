@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const SSLCommerzPayment = require("sslcommerz-lts");
 
 const port = process.env.PORT || 5000;
 
@@ -61,6 +62,7 @@ async function run() {
     const reviewCollection = client.db("tastyDB").collection("reviews");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
+    const customerCollection = client.db("tastyDB").collection("customer");
     const businessCollection = client.db("tastyDB").collection("business");
     const divisionCollection = client.db("tastyDB").collection("division");
     const districtsCollection = client.db("tastyDB").collection("districts");
@@ -89,22 +91,25 @@ async function run() {
     app.get("/api/searched-location/:searchQuery", async (req, res) => {
       try {
         const searchQuery = req.params.searchQuery;
-        console.log("Received searchQuery:", searchQuery); 
+        console.log("Received searchQuery:", searchQuery);
 
         //I used $or operator to query for documents where any of the specified fields match the searchQuery.
         //I used regex operator to perform case insensitive search.
-        const result = await partnerCollection.find({
-          $or: [
-            { "locations.division": { $regex: searchQuery, $options: "i" } },
-            { "locations.district": { $regex: searchQuery, $options: "i" } },
-            { "locations.upazila": { $regex: searchQuery, $options: "i" } },
-          ],
-        }).toArray();
+        const result = await partnerCollection
+          .find({
+            $or: [
+              { "locations.division": { $regex: searchQuery, $options: "i" } },
+              { "locations.district": { $regex: searchQuery, $options: "i" } },
+              { "locations.upazila": { $regex: searchQuery, $options: "i" } },
+            ],
+          })
+          .toArray();
 
         res.json(result);
-      }
-      catch (error) {
-        res.status(500).json({ error: "Error fetching location data from partner-collection" });
+      } catch (error) {
+        res.status(500).json({
+          error: "Error fetching location data from partner-collection",
+        });
       }
     });
 
@@ -175,11 +180,11 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting restaurant data by email address
+    //& Getting all menu's from a restaurant by partner email
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
-        console.log(email)
+        console.log(email);
         const partner = await partnerCollection.findOne({ email: email });
         if (!partner) {
           return res.status(404).json({ error: "Partner not found" });
@@ -190,6 +195,39 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+    //& Api for deleting signle menu items by id
+    app.delete("/delete-menu-item/:email/:menuItemId", async (req, res) => {
+      try {
+        const { email, menuItemId } = req.params;
+
+        // Find the item before deleting it
+        const foundMenuItem = await partnerCollection.findOne({
+          email,
+          "menu._id": new ObjectId(menuItemId),
+        });
+
+        if (!foundMenuItem) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
+        const result = await partnerCollection.updateOne(
+          { email },
+          { $pull: { menu: { _id: new ObjectId(menuItemId) } } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
+
+        res.status(200).json({ message: "Menu item deleted successfully!", deletedItem: foundMenuItem._id });
+      } catch (error) {
+        console.error("Error deleting menu item:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    //& Api for updating single menu items
+    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {});
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -220,6 +258,10 @@ async function run() {
 
         // Add the entire data object to the menu array
         if (partnersData) {
+          //& Generate a new ObjectId for the menu item
+          const menuItemId = new ObjectId();
+          data._id = menuItemId;
+
           const updatedMenu = [...(partnersData.menu || []), data];
           const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },
@@ -282,6 +324,88 @@ async function run() {
       };
       const result = await upazilasCollection.find(filter).toArray();
       res.send(result);
+    });
+    // customer apis
+    app.post("/customer", verifyJwt, async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const filter = { email: data?.email };
+      const isExist = await customerCollection.findOne(filter);
+      if (isExist) {
+        const updateDocs = {
+          $set: {
+            ...data,
+          },
+        };
+        const result1 = await customerCollection.updateOne(filter, updateDocs);
+        res.send(result1);
+      } else {
+        const result2 = await customerCollection.insertOne(data);
+        res.send(result2);
+      }
+    });
+    app.get("/customer", verifyJwt, async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const filter = { email: email };
+      const result = await customerCollection.findOne(filter);
+      res.send(result);
+    });
+    // give all menu
+    app.get("/allDishesMenu", async (req, res) => {
+      const pipeline = [
+        {
+          $unwind: "$menu",
+        },
+        {
+          $replaceRoot: { newRoot: "$menu" },
+        },
+      ];
+      const result = await partnerCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+    // sslcommerz payment
+    const store_id = process.env.STORE_ID;
+    const store_passwd = process.env.STORE_PASSWORD;
+    const is_live = false;
+    app.get("/payment", (req, res) => {
+      const data = {
+        total_amount: 100,
+        currency: "BDT",
+        tran_id: "REF123", // use unique tran_id for each api call
+        success_url: "http://localhost:3030/success",
+        fail_url: "http://localhost:3030/fail",
+        cancel_url: "http://localhost:3030/cancel",
+        ipn_url: "http://localhost:3030/ipn",
+        shipping_method: "Courier",
+        product_name: "Computer.",
+        product_category: "Electronic",
+        product_profile: "general",
+        cus_name: "Customer Name",
+        cus_email: "customer@example.com",
+        cus_add1: "Dhaka",
+        cus_add2: "Dhaka",
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: "01711111111",
+        cus_fax: "01711111111",
+        ship_name: "Customer Name",
+        ship_add1: "Dhaka",
+        ship_add2: "Dhaka",
+        ship_city: "Dhaka",
+        ship_state: "Dhaka",
+        ship_postcode: 1000,
+        ship_country: "Bangladesh",
+      };
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      sslcz.init(data).then((apiResponse) => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.redirect(GatewayPageURL);
+        console.log("Redirecting to: ", GatewayPageURL);
+      });
     });
 
     // Send a ping to confirm a successful connection

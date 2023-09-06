@@ -180,7 +180,7 @@ async function run() {
       res.send(result);
     });
 
-    //& Getting restaurant data by email address
+    //& Getting all menu's from a restaurant by partner email
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
@@ -195,6 +195,39 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+    //& Api for deleting signle menu items by id
+    app.delete("/delete-menu-item/:email/:menuItemId", async (req, res) => {
+      try {
+        const { email, menuItemId } = req.params;
+
+        // Find the item before deleting it
+        const foundMenuItem = await partnerCollection.findOne({
+          email,
+          "menu._id": new ObjectId(menuItemId),
+        });
+
+        if (!foundMenuItem) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
+        const result = await partnerCollection.updateOne(
+          { email },
+          { $pull: { menu: { _id: new ObjectId(menuItemId) } } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
+
+        res.status(200).json({ message: "Menu item deleted successfully!", deletedItem: foundMenuItem._id });
+      } catch (error) {
+        console.error("Error deleting menu item:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    //& Api for updating single menu items
+    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {});
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -225,7 +258,10 @@ async function run() {
 
         // Add the entire data object to the menu array
         if (partnersData) {
-          data._id = new ObjectId();
+          //& Generate a new ObjectId for the menu item
+          const menuItemId = new ObjectId();
+          data._id = menuItemId;
+
           const updatedMenu = [...(partnersData.menu || []), data];
           const result5 = await partnerCollection.updateOne(filter, {
             $set: { menu: updatedMenu },

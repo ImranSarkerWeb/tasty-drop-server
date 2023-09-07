@@ -19,7 +19,6 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan("dev"));
 
-
 const verifyJwt = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
@@ -202,6 +201,15 @@ async function run() {
       try {
         const { email, menuItemId } = req.params;
 
+        // Find the item before deleting it
+        const foundMenuItem = await partnerCollection.findOne({
+          email,
+          "menu._id": new ObjectId(menuItemId),
+        });
+
+        if (!foundMenuItem) {
+          return res.status(404).json({ error: "Menu item not found" });
+        }
         const result = await partnerCollection.updateOne(
           { email },
           { $pull: { menu: { _id: new ObjectId(menuItemId) } } }
@@ -211,10 +219,57 @@ async function run() {
           return res.status(404).json({ error: "Menu item not found" });
         }
 
-        res.status(200).json({ message: "Menu item deleted successfully!" });
+        res
+          .status(200)
+          .json({
+            message: "Menu item deleted successfully!",
+            deletedItem: foundMenuItem._id,
+          });
       } catch (error) {
         console.error("Error deleting menu item:", error);
         res.status(500).json({ error: "Internal server error" });
+      }
+    });
+
+    //& Api for updating single menu items
+    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
+      try {
+        const { email, menuItemId } = req.params;
+        const updatedData = req.body;
+        const partner = await partnerCollection.findOne({ email });
+
+        const menuItem = partner.menu.find(
+          (item) => item._id.toString() === menuItemId
+        );
+
+        if (!menuItem) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Menu item not found" });
+        }
+
+        if (menuItem.email !== email) {
+          return res.status(403).json({
+            success: false,
+            message: "Unauthorized to update this menu item",
+          });
+        }
+
+        Object.assign(menuItem, updatedData);
+
+        await partnerCollection.updateOne(
+          { email },
+          { $set: { menu: partner.menu } }
+        );
+
+        return res
+          .status(200)
+          .json({ success: true, message: "Menu item updated successfully" });
+      } catch (error) {
+        console.error(error);
+        return res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
       }
     });
 
@@ -357,28 +412,33 @@ async function run() {
     const store_id = process.env.STORE_ID;
     const store_passwd = process.env.STORE_PASSWORD;
     const is_live = false;
-    app.get("/payment", (req, res) => {
+    const tranId = new ObjectId().toString();
+    app.post("/order", async (req, res) => {
+      const orderData = req.body;
+      const id = orderData?.resturenId;
+      // console.log(id);
+      // console.log(orderData);
       const data = {
-        total_amount: 100,
+        total_amount: orderData.totalPrice,
         currency: "BDT",
-        tran_id: "REF123", // use unique tran_id for each api call
-        success_url: "http://localhost:3030/success",
-        fail_url: "http://localhost:3030/fail",
+        tran_id: tranId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success/${tranId}`,
+        fail_url: `http://localhost:5000/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
         product_name: "Computer.",
         product_category: "Electronic",
         product_profile: "general",
-        cus_name: "Customer Name",
-        cus_email: "customer@example.com",
-        cus_add1: "Dhaka",
-        cus_add2: "Dhaka",
-        cus_city: "Dhaka",
-        cus_state: "Dhaka",
+        cus_name: orderData?.customerData?.name,
+        cus_email: orderData?.customerData?.email,
+        cus_add1: orderData?.homeAddress?.area,
+        cus_add2: orderData?.homeAddress?.upazila,
+        cus_city: orderData?.homeAddress?.district,
+        cus_state: orderData?.homeAddress?.district,
         cus_postcode: "1000",
         cus_country: "Bangladesh",
-        cus_phone: "01711111111",
+        cus_phone: orderData?.customerData?.number,
         cus_fax: "01711111111",
         ship_name: "Customer Name",
         ship_add1: "Dhaka",
@@ -388,12 +448,66 @@ async function run() {
         ship_postcode: 1000,
         ship_country: "Bangladesh",
       };
+
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
-      sslcz.init(data).then((apiResponse) => {
+      sslcz.init(data).then(async (apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.redirect(GatewayPageURL);
+        res.send({ url: GatewayPageURL });
+
+        const query = { _id: new ObjectId(id) };
+        const findResturent = await partnerCollection.findOne(query);
+        orderData._id = new ObjectId();
+        orderData.paymentStatus = false;
+        orderData.tranjectionId = tranId;
+        if (!findResturent?.order) {
+          const newOrder = [...(findResturent.order || []), orderData];
+          const result1 = await partnerCollection.updateOne(query, {
+            $set: { order: newOrder },
+          });
+          // res.send(result1);
+        } else {
+          const newOrder = [...(findResturent.order || []), orderData];
+          const result2 = await partnerCollection.updateOne(query, {
+            $set: { order: newOrder },
+          });
+          // res.send(result2);
+        }
+        console.log("line:380", findResturent);
+
         console.log("Redirecting to: ", GatewayPageURL);
+      });
+      app.post("/payment/success/:tranId", async (req, res) => {
+        const tranId = req.params.tranId;
+        // console.log(tranId);
+        const newPaymentStatus = true;
+
+        const result = await partnerCollection.updateOne(
+          {
+            // _id: new ObjectId(resturenId),
+            "order.tranjectionId": tranId,
+          },
+          {
+            $set: {
+              "order.$.paymentStatus": newPaymentStatus,
+              "order.$.delivery": "pending",
+            },
+          }
+        );
+        // console.log(result);
+        if (result && result.modifiedCount > 0) {
+          res.redirect(`http://localhost:5173/payment/success/${tranId}`);
+        }
+      });
+      app.post("/payment/fail/:tranId", async (req, res) => {
+        const tranId = req.params.tranId;
+        const result = await partnerCollection.updateOne(
+          { "order.tranjectionId": tranId },
+          { $pull: { order: { tranjectionId: tranId } } }
+        );
+        if (result.modifiedCount > 0) {
+          res.redirect(`http://localhost:5173/payment/fail`);
+        }
       });
     });
 

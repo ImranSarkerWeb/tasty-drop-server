@@ -219,7 +219,12 @@ async function run() {
           return res.status(404).json({ error: "Menu item not found" });
         }
 
-        res.status(200).json({ message: "Menu item deleted successfully!", deletedItem: foundMenuItem._id });
+        res
+          .status(200)
+          .json({
+            message: "Menu item deleted successfully!",
+            deletedItem: foundMenuItem._id,
+          });
       } catch (error) {
         console.error("Error deleting menu item:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -227,7 +232,46 @@ async function run() {
     });
 
     //& Api for updating single menu items
-    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {});
+    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
+      try {
+        const { email, menuItemId } = req.params;
+        const updatedData = req.body;
+        const partner = await partnerCollection.findOne({ email });
+
+        const menuItem = partner.menu.find(
+          (item) => item._id.toString() === menuItemId
+        );
+
+        if (!menuItem) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Menu item not found" });
+        }
+
+        if (menuItem.email !== email) {
+          return res.status(403).json({
+            success: false,
+            message: "Unauthorized to update this menu item",
+          });
+        }
+
+        Object.assign(menuItem, updatedData);
+
+        await partnerCollection.updateOne(
+          { email },
+          { $set: { menu: partner.menu } }
+        );
+
+        return res
+          .status(200)
+          .json({ success: true, message: "Menu item updated successfully" });
+      } catch (error) {
+        console.error(error);
+        return res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    });
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -404,13 +448,13 @@ async function run() {
         ship_postcode: 1000,
         ship_country: "Bangladesh",
       };
-    
+
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
       sslcz.init(data).then(async (apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL;
         res.send({ url: GatewayPageURL });
-        
+
         const query = { _id: new ObjectId(id) };
         const findResturent = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
@@ -459,7 +503,7 @@ async function run() {
         const tranId = req.params.tranId;
         const result = await partnerCollection.updateOne(
           { "order.tranjectionId": tranId },
-          { $pull: { "order": { tranjectionId: tranId } } }
+          { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
           res.redirect(`http://localhost:5173/payment/fail`);

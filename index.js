@@ -189,7 +189,7 @@ async function run() {
       const user = await usersCollection.findOne({ email: email });
       res.send(user);
     });
-    app.get("/users", async(req));
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

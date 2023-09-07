@@ -112,6 +112,7 @@ async function run() {
         });
       }
     });
+    
 
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
@@ -120,6 +121,14 @@ async function run() {
       const result = await partnerCollection.findOne(query);
       res.send(result);
     });
+
+
+    //partner api
+    app.get("/partners", async (req, res) => { 
+      const result = await partnerCollection.find().toArray();
+      res.send(result);
+    })
+
 
     // business apis
     app.post("/business", verifyJwt, async (req, res) => {
@@ -196,7 +205,7 @@ async function run() {
       }
     });
 
-    //& Api for deleting signle menu items by id
+    //& Api for deleting single menu items by id
     app.delete("/delete-menu-item/:email/:menuItemId", async (req, res) => {
       try {
         const { email, menuItemId } = req.params;
@@ -348,11 +357,13 @@ async function run() {
       res.send(result);
     });
 
-    // loaction apis
+
+    // location apis
     app.get("/division", async (req, res) => {
       const result = await divisionCollection.find().toArray();
       res.send(result);
     });
+
     app.get("/districts", async (req, res) => {
       const { data } = req.query;
       const filter = {
@@ -361,6 +372,7 @@ async function run() {
       const result = await districtsCollection.find(filter).toArray();
       res.send(result);
     });
+
     app.get("/upazila", async (req, res) => {
       const { data } = req.query;
       const filter = {
@@ -369,6 +381,8 @@ async function run() {
       const result = await upazilasCollection.find(filter).toArray();
       res.send(result);
     });
+
+
     // customer apis
     app.post("/customer", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -388,6 +402,7 @@ async function run() {
         res.send(result2);
       }
     });
+
     app.get("/customer", verifyJwt, async (req, res) => {
       const email = req.query.email;
       console.log(email);
@@ -395,6 +410,8 @@ async function run() {
       const result = await customerCollection.findOne(filter);
       res.send(result);
     });
+
+
     // give all menu
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
@@ -408,7 +425,9 @@ async function run() {
       const result = await partnerCollection.aggregate(pipeline).toArray();
       res.send(result);
     });
-    // sslcommerz payment
+
+
+    // SSL commerce payment
     const store_id = process.env.STORE_ID;
     const store_passwd = process.env.STORE_PASSWORD;
     const is_live = false;
@@ -416,13 +435,12 @@ async function run() {
     app.post("/order", async (req, res) => {
       const orderData = req.body;
       const id = orderData?.resturenId;
-      // console.log(id);
-      // console.log(orderData);
+
       const data = {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${tranId}`,
+        success_url: `http://localhost:5000/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
         fail_url: `http://localhost:5000/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
@@ -456,24 +474,24 @@ async function run() {
         res.send({ url: GatewayPageURL });
 
         const query = { _id: new ObjectId(id) };
-        const findResturent = await partnerCollection.findOne(query);
+        const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
         orderData.tranjectionId = tranId;
-        if (!findResturent?.order) {
-          const newOrder = [...(findResturent.order || []), orderData];
+        if (!findRestaurant?.order) {
+          const newOrder = [...(findRestaurant.order || []), orderData];
           const result1 = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
           // res.send(result1);
         } else {
-          const newOrder = [...(findResturent.order || []), orderData];
+          const newOrder = [...(findRestaurant.order || []), orderData];
           const result2 = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
           // res.send(result2);
         }
-        console.log("line:380", findResturent);
+        console.log("line:380", findRestaurant);
 
         console.log("Redirecting to: ", GatewayPageURL);
       });

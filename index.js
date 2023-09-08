@@ -112,7 +112,7 @@ async function run() {
         });
       }
     });
-    
+
 
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
@@ -124,7 +124,7 @@ async function run() {
 
 
     //partner api
-    app.get("/partners", async (req, res) => { 
+    app.get("/partners", async (req, res) => {
       const result = await partnerCollection.find().toArray();
       res.send(result);
     })
@@ -413,17 +413,69 @@ async function run() {
 
 
     // give all menu
-    app.get("/allDishesMenu", async (req, res) => {
+    app.get("/api/orders", async (req, res) => {
       const pipeline = [
         {
-          $unwind: "$menu",
+          $unwind: "$order",
         },
         {
-          $replaceRoot: { newRoot: "$menu" },
+          $replaceRoot: { newRoot: "$order" },
         },
       ];
       const result = await partnerCollection.aggregate(pipeline).toArray();
       res.send(result);
+    });
+
+    // Update delivery status when accepted by rider
+    router.put('/orders/accept/:orderId', async (req, res) => {
+      const { orderId } = req.params;
+
+      try {
+        await client.connect();
+
+        // Update the delivery status to "Accepted by Rider"
+        const result = await partnerCollection.updateOne(
+          { 'order._id': ObjectId(orderId) }, // Match the order with the specified orderId
+          { $set: { 'order.delivery': 'Received by Rider' } } // Update the delivery status
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: 'Order not found' });
+        }
+
+        res.status(200).json({ message: 'Delivery status updated to Accepted by Rider' });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+      } finally {
+        await client.close();
+      }
+    });
+
+    // Update delivery status when declined by rider
+    router.put('/orders/decline/:orderId', async (req, res) => {
+      const { orderId } = req.params;
+
+      try {
+        await client.connect();
+
+        // Update the delivery status to "Declined by Rider"
+        const result = await partnerCollection.updateOne(
+          { 'order._id': ObjectId(orderId) }, // Match the order with the specified orderId
+          { $set: { 'order.delivery': 'Declined by Rider' } } // Update the delivery status
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: 'Order not found' });
+        }
+
+        res.status(200).json({ message: 'Delivery status updated to Declined by Rider' });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal server error' });
+      } finally {
+        await client.close();
+      }
     });
 
 

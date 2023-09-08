@@ -492,7 +492,7 @@ async function run() {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
         fail_url: `http://localhost:5000/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
@@ -566,7 +566,7 @@ async function run() {
         );
         // console.log(result);
         if (result && result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/${tranId}`);
+          res.redirect(`${process.env.LIVE_URL}/payment/success/${tranId}`);
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
@@ -576,7 +576,7 @@ async function run() {
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/fail`);
+          res.redirect(`${process.env.LIVE_URL}/payment/fail`);
         }
       });
     });
@@ -587,9 +587,8 @@ async function run() {
       const user = await usersCollection.findOne({ email: email });
       res.send(user);
     });
-
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+        // Send a ping to confirm a successful connection
+        await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );

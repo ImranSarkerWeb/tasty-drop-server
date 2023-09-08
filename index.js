@@ -184,7 +184,7 @@ async function run() {
     });
 
     // get specific user data
-    app.get("/users/:email", async (req, res) => {
+    app.get("/user/:email", async (req, res) => {
       const email = req.params.email;
       const user = await usersCollection.findOne({ email: email });
       res.send(user);

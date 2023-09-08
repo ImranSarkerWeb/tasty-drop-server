@@ -427,7 +427,7 @@ async function run() {
     });
 
     // Update delivery status when accepted by rider
-    router.put('/orders/accept/:orderId', async (req, res) => {
+    app.put('/orders/accept/:orderId', async (req, res) => {
       const { orderId } = req.params;
 
       try {
@@ -453,7 +453,7 @@ async function run() {
     });
 
     // Update delivery status when declined by rider
-    router.put('/orders/decline/:orderId', async (req, res) => {
+    app.put('/orders/decline/:orderId', async (req, res) => {
       const { orderId } = req.params;
 
       try {

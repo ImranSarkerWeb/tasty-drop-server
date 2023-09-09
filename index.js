@@ -427,7 +427,7 @@ async function run() {
     });
 
     // Update delivery status when accepted by rider
-    router.put('/orders/accept/:orderId', async (req, res) => {
+    app.put('/orders/accept/:orderId', async (req, res) => {
       const { orderId } = req.params;
 
       try {
@@ -453,7 +453,7 @@ async function run() {
     });
 
     // Update delivery status when declined by rider
-    router.put('/orders/decline/:orderId', async (req, res) => {
+    app.put('/orders/decline/:orderId', async (req, res) => {
       const { orderId } = req.params;
 
       try {
@@ -492,7 +492,8 @@ async function run() {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //& Env added ===>
+        //this is the reason why we need cant payment successfully from live site.....
         fail_url: `http://localhost:5000/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
@@ -566,7 +567,7 @@ async function run() {
         );
         // console.log(result);
         if (result && result.modifiedCount > 0) {
-          res.redirect(`${process.env.LIVE_URL}/payment/success/${tranId}`);
+          res.redirect(`${process.env.LIVE_URL}/payment/success/${tranId}`); //& Env added ===>
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
@@ -576,7 +577,7 @@ async function run() {
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`${process.env.LIVE_URL}/payment/fail`);
+          res.redirect(`${process.env.LIVE_URL}/payment/fail`);  //& Env added ===>
         }
       });
     });

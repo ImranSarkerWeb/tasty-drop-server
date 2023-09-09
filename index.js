@@ -427,16 +427,20 @@ async function run() {
     });
 
     // Update delivery status when accepted by rider
-    router.put('/orders/accept/:orderId', async (req, res) => {
+    app.put('/api/orders/accept/:orderId', async (req, res) => {
       const { orderId } = req.params;
-
+      console.log(orderId);
       try {
         await client.connect();
 
+        // Create a new instance of ObjectId using the 'new' keyword
+        const objectId = new ObjectId(orderId);
+
+
         // Update the delivery status to "Accepted by Rider"
         const result = await partnerCollection.updateOne(
-          { 'order._id': ObjectId(orderId) }, // Match the order with the specified orderId
-          { $set: { 'order.delivery': 'Received by Rider' } } // Update the delivery status
+          { 'order._id': objectId }, // Use the objectId instance
+          { $set: { 'order.delivery': 'Received by Rider' } }
         );
 
         if (result.matchedCount === 0) {
@@ -453,15 +457,18 @@ async function run() {
     });
 
     // Update delivery status when declined by rider
-    router.put('/orders/decline/:orderId', async (req, res) => {
+    app.put('/api/orders/decline/:orderId', async (req, res) => {
       const { orderId } = req.params;
 
       try {
         await client.connect();
 
+        // Create a new instance of ObjectId using the 'new' keyword
+        const objectId = new ObjectId(orderId);
+
         // Update the delivery status to "Declined by Rider"
         const result = await partnerCollection.updateOne(
-          { 'order._id': ObjectId(orderId) }, // Match the order with the specified orderId
+          { 'order._id': objectId }, // Match the order with the specified orderId
           { $set: { 'order.delivery': 'Declined by Rider' } } // Update the delivery status
         );
 
@@ -587,8 +594,8 @@ async function run() {
       const user = await usersCollection.findOne({ email: email });
       res.send(user);
     });
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
+    // Send a ping to confirm a successful connection
+    await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );

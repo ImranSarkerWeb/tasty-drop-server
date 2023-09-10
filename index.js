@@ -321,23 +321,24 @@ async function run() {
     });
 
     //& Getting all the orders from the partner collection
-   app.get("/orders/partner", async (req, res) => {
-     try {
-       const partnerEmail = req.query.email;
-       const partner = await partnerCollection.findOne({ email: partnerEmail });
+    app.get("/orders/partner", async (req, res) => {
+      try {
+        const partnerEmail = req.query.email;
+        const partner = await partnerCollection.findOne({
+          email: partnerEmail,
+        });
 
-       if (!partner) {
-         return res.status(404).json({ message: "Partner not found" });
-       }
-       const orders = partner.order;
+        if (!partner) {
+          return res.status(404).json({ message: "Partner not found" });
+        }
+        const orders = partner.order;
 
-       res.json(orders);
-     } catch (error) {
-       console.error("Error:", error); 
-       res.status(500).json({ message: "Server error" });
-     }
-   });
-
+        res.json(orders);
+      } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
 
     // jwt apis
     app.post("/jwt", async (req, res) => {
@@ -379,9 +380,10 @@ async function run() {
     });
 
     // update the user data
-    app.put("/user/:email", async (req, res) => {
+    app.patch("/user/:email", async (req, res) => {
       const email = req.params.email;
       const data = req.body;
+      console.log(data);
       const filter = { email: email };
       const updateDoc = {
         $set: {
@@ -423,33 +425,33 @@ async function run() {
       res.send(result);
     });
 
-    // customer apis
-    app.post("/customer", verifyJwt, async (req, res) => {
-      const data = req.body;
-      console.log(data);
-      const filter = { email: data?.email };
-      const isExist = await customerCollection.findOne(filter);
-      if (isExist) {
-        const updateDocs = {
-          $set: {
-            ...data,
-          },
-        };
-        const result1 = await customerCollection.updateOne(filter, updateDocs);
-        res.send(result1);
-      } else {
-        const result2 = await customerCollection.insertOne(data);
-        res.send(result2);
-      }
-    });
+    // // customer apis
+    // app.post("/customer", verifyJwt, async (req, res) => {
+    //   const data = req.body;
+    //   console.log(data);
+    //   const filter = { email: data?.email };
+    //   const isExist = await customerCollection.findOne(filter);
+    //   if (isExist) {
+    //     const updateDocs = {
+    //       $set: {
+    //         ...data,
+    //       },
+    //     };
+    //     const result1 = await customerCollection.updateOne(filter, updateDocs);
+    //     res.send(result1);
+    //   } else {
+    //     const result2 = await customerCollection.insertOne(data);
+    //     res.send(result2);
+    //   }
+    // });
 
-    app.get("/customer", verifyJwt, async (req, res) => {
-      const email = req.query.email;
-      console.log(email);
-      const filter = { email: email };
-      const result = await customerCollection.findOne(filter);
-      res.send(result);
-    });
+    // app.get("/customer", verifyJwt, async (req, res) => {
+    //   const email = req.query.email;
+    //   console.log(email);
+    //   const filter = { email: email };
+    //   const result = await customerCollection.findOne(filter);
+    //   res.send(result);
+    // });
 
     // give all menu, //!what is the useCase of this api?
     app.get("/allDishesMenu", async (req, res) => {
@@ -543,7 +545,7 @@ async function run() {
 
     // SSL commerce payment
     const store_id = process.env.STORE_ID;
-    const store_passwd = process.env.STORE_PASSWORD;
+    const store_password = process.env.STORE_PASSWORD;
     const is_live = false;
     const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
@@ -554,8 +556,8 @@ async function run() {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
-        fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
+        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+        fail_url: `${process.env.SERVER_URL}/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -570,7 +572,7 @@ async function run() {
         cus_state: orderData?.homeAddress?.district,
         cus_postcode: "1000",
         cus_country: "Bangladesh",
-        cus_phone: orderData?.customerData?.number,
+        cus_phone: orderData?.customerData?.phone,
         cus_fax: "01711111111",
         ship_name: "Customer Name",
         ship_add1: "Dhaka",
@@ -581,8 +583,9 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
+        console.log(apiResponse);
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
@@ -597,11 +600,11 @@ async function run() {
         } else {
           const existingOrder = findRestaurant.order || [];
           const newOrder = [...existingOrder, orderData];
-      
+
           const result = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
-      
+
           if (result.modifiedCount > 0) {
             // Redirect the user to the payment gateway
             let GatewayPageURL = apiResponse.GatewayPageURL;
@@ -609,12 +612,11 @@ async function run() {
             console.log("Redirecting to: ", GatewayPageURL);
           } else {
             // Handle the case where the update failed
-            res.status(500).json({ message: 'Failed to update order' });
+            res.status(500).json({ message: "Failed to update order" });
           }
         }
       });
-      
-      
+
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);

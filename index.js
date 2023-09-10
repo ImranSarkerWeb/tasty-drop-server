@@ -324,6 +324,25 @@ async function run() {
       }
     });
 
+    //& Getting all the orders from the partner collection
+   app.get("/orders/partner", async (req, res) => {
+     try {
+       const partnerEmail = req.query.email;
+       const partner = await partnerCollection.findOne({ email: partnerEmail });
+
+       if (!partner) {
+         return res.status(404).json({ message: "Partner not found" });
+       }
+       const orders = partner.order;
+
+       res.json(orders);
+     } catch (error) {
+       console.error("Error:", error); 
+       res.status(500).json({ message: "Server error" });
+     }
+   });
+
+
     // jwt apis
     app.post("/jwt", async (req, res) => {
       const email = req.body;
@@ -530,7 +549,7 @@ async function run() {
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
-        orderData.tranjectionId = tranId;
+        orderData.transactionId = tranId;
         if (!findRestaurant?.order) {
           const newOrder = [...(findRestaurant.order || []), orderData];
           const result1 = await partnerCollection.updateOne(query, {
@@ -556,7 +575,7 @@ async function run() {
         const result = await partnerCollection.updateOne(
           {
             // _id: new ObjectId(resturenId),
-            "order.tranjectionId": tranId,
+            "order.transactionId": tranId,
           },
           {
             $set: {
@@ -573,8 +592,8 @@ async function run() {
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         const result = await partnerCollection.updateOne(
-          { "order.tranjectionId": tranId },
-          { $pull: { order: { tranjectionId: tranId } } }
+          { "order.transactionId": tranId },
+          { $pull: { order: { transactionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
           res.redirect(`${process.env.LIVE_URL}/payment/fail`);  //& Env added ===>

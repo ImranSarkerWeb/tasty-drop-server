@@ -67,6 +67,7 @@ async function run() {
     const divisionCollection = client.db("tastyDB").collection("division");
     const districtsCollection = client.db("tastyDB").collection("districts");
     const upazilasCollection = client.db("tastyDB").collection("upazilas");
+    const orderCollection = client.db("tastyDB").collection("orders");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -464,6 +465,20 @@ async function run() {
       res.send(result);
     });
 
+    //all order data....
+    app.get("/api/orders", async (req, res) => {
+      const pipeline = [
+        {
+          $unwind: "$order",
+        },
+        {
+          $replaceRoot: { newRoot: "$order" },
+        },
+      ];
+      const result = await partnerCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
@@ -568,32 +583,38 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
         orderData.transactionId = tranId;
-        // if (!findRestaurant?.order) {
-        //   const newOrder = [...(findRestaurant.order || []), orderData];
-        //   const result1 = await partnerCollection.updateOne(query, {
-        //     $set: { order: newOrder },
-        //   });
-        //   // res.send(result1);
-        // } else {
-        //   const newOrder = [...(findRestaurant.order || []), orderData];
-        //   const result2 = await partnerCollection.updateOne(query, {
-        //     $set: { order: newOrder },
-        //   });
-        //   // res.send(result2);
-        // }
-        console.log("line:380", findRestaurant);
-
-        console.log("Redirecting to: ", GatewayPageURL);
+        if (!findRestaurant?.order) {
+          const newOrder = [...(findRestaurant.order || []), orderData];
+          const result1 = await partnerCollection.updateOne(query, {
+            $set: { order: newOrder },
+          });
+          // res.send(result1);
+        } else {
+          const existingOrder = findRestaurant.order || [];
+          const newOrder = [...existingOrder, orderData];
+      
+          const result = await partnerCollection.updateOne(query, {
+            $set: { order: newOrder },
+          });
+      
+          if (result.modifiedCount > 0) {
+            // Redirect the user to the payment gateway
+            let GatewayPageURL = apiResponse.GatewayPageURL;
+            res.send({ url: GatewayPageURL });
+            console.log("Redirecting to: ", GatewayPageURL);
+          } else {
+            // Handle the case where the update failed
+            res.status(500).json({ message: 'Failed to update order' });
+          }
+        }
       });
+      
+      
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);

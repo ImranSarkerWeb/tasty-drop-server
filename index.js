@@ -321,22 +321,22 @@ async function run() {
     });
 
     //& Getting all the orders from the partner collection
-   app.get("/orders/partner", async (req, res) => {
-     try {
-       const partnerEmail = req.query.email;
-       const partner = await partnerCollection.findOne({ email: partnerEmail });
+    app.get("/orders/partner", async (req, res) => {
+      try {
+        const partnerEmail = req.query.email;
+        const partner = await partnerCollection.findOne({ email: partnerEmail });
 
-       if (!partner) {
-         return res.status(404).json({ message: "Partner not found" });
-       }
-       const orders = partner.order;
+        if (!partner) {
+          return res.status(404).json({ message: "Partner not found" });
+        }
+        const orders = partner.order;
 
-       res.json(orders);
-     } catch (error) {
-       console.error("Error:", error); 
-       res.status(500).json({ message: "Server error" });
-     }
-   });
+        res.json(orders);
+      } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
 
 
     // jwt apis
@@ -467,17 +467,32 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      const pipeline = [
-        {
-          $unwind: "$order",
-        },
-        {
-          $replaceRoot: { newRoot: "$order" },
-        },
-      ];
-      const result = await partnerCollection.aggregate(pipeline).toArray();
-      res.send(result);
+      try {
+        const client = new MongoClient(uri);
+        await client.connect();
+        console.log("Connected to MongoDB");
+
+        const pipeline = [
+          {
+            $unwind: "$order",
+          },
+          {
+            $replaceRoot: { newRoot: "$order" },
+          },
+        ];
+        const result = await partnerCollection.aggregate(pipeline).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        res.status(500).send("Internal Server Error");
+      } finally {
+        // Close the MongoDB client connection
+        await client.close();
+        console.log("MongoDB connection closed");
+      }
     });
+
 
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
@@ -488,11 +503,12 @@ async function run() {
 
         // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
+        console.log(objectId);
 
         // Update the delivery status to "Accepted by Rider"
         const result = await partnerCollection.updateOne(
           { "order._id": objectId }, // Use the objectId instance
-          { $set: { "order.delivery": "Received by Rider" } }
+          { $set: { "order.$.delivery": "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -523,7 +539,7 @@ async function run() {
         // Update the delivery status to "Declined by Rider"
         const result = await partnerCollection.updateOne(
           { "order._id": objectId }, // Match the order with the specified orderId
-          { $set: { "order.delivery": "Declined by Rider" } } // Update the delivery status
+          { $set: { "order.$.delivery": "pending" } } // Update the delivery status
         );
 
         if (result.matchedCount === 0) {
@@ -597,11 +613,11 @@ async function run() {
         } else {
           const existingOrder = findRestaurant.order || [];
           const newOrder = [...existingOrder, orderData];
-      
+
           const result = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
-      
+
           if (result.modifiedCount > 0) {
             // Redirect the user to the payment gateway
             let GatewayPageURL = apiResponse.GatewayPageURL;
@@ -613,8 +629,8 @@ async function run() {
           }
         }
       });
-      
-      
+
+
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);

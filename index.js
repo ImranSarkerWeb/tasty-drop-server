@@ -465,6 +465,20 @@ async function run() {
       res.send(result);
     });
 
+    //all order data....
+    app.get("/api/orders", async (req, res) => {
+      const pipeline = [
+        {
+          $unwind: "$order",
+        },
+        {
+          $replaceRoot: { newRoot: "$order" },
+        },
+      ];
+      const result = await partnerCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;

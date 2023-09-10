@@ -509,7 +509,7 @@ async function run() {
 
     // SSL commerce payment
     const store_id = process.env.STORE_ID;
-    const store_passwd = process.env.STORE_PASSWORD;
+    const store_password = process.env.STORE_PASSWORD;
     const is_live = false;
     const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
@@ -521,7 +521,7 @@ async function run() {
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
         success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
-        fail_url: `http://localhost:5000/payment/fail/${tranId}`,
+        fail_url: `${process.env.SERVER_URL}/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -547,10 +547,11 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL;
+        console.log(apiResponse);
         res.send({ url: GatewayPageURL });
 
         const query = { _id: new ObjectId(id) };

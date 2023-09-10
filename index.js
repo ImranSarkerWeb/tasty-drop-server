@@ -67,6 +67,7 @@ async function run() {
     const divisionCollection = client.db("tastyDB").collection("division");
     const districtsCollection = client.db("tastyDB").collection("districts");
     const upazilasCollection = client.db("tastyDB").collection("upazilas");
+    const orderCollection = client.db("tastyDB").collection("orders");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -499,9 +500,9 @@ async function run() {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //& Env added ===>
+        success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //& Env added ===>
         //this is the reason why we need cant payment successfully from live site.....
-        fail_url: `http://localhost:5000/payment/fail/${tranId}`,
+        fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -529,32 +530,36 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
         orderData.tranjectionId = tranId;
-        if (!findRestaurant?.order) {
-          const newOrder = [...(findRestaurant.order || []), orderData];
-          const result1 = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-          // res.send(result1);
+      
+        if (!findRestaurant) {
+          // Handle the case where the restaurant is not found
+          res.status(404).json({ message: 'Restaurant not found' });
         } else {
-          const newOrder = [...(findRestaurant.order || []), orderData];
-          const result2 = await partnerCollection.updateOne(query, {
+          const existingOrder = findRestaurant.order || [];
+          const newOrder = [...existingOrder, orderData];
+      
+          const result = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
-          // res.send(result2);
+      
+          if (result.modifiedCount > 0) {
+            // Redirect the user to the payment gateway
+            let GatewayPageURL = apiResponse.GatewayPageURL;
+            res.send({ url: GatewayPageURL });
+            console.log("Redirecting to: ", GatewayPageURL);
+          } else {
+            // Handle the case where the update failed
+            res.status(500).json({ message: 'Failed to update order' });
+          }
         }
-        console.log("line:380", findRestaurant);
-
-        console.log("Redirecting to: ", GatewayPageURL);
       });
+      
+      
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);

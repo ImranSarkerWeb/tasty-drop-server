@@ -452,7 +452,7 @@ async function run() {
     const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
       const orderData = req.body;
-      const id = orderData?.resturenId;
+      const id = orderData?.restaurantId;
 
       const data = {
         total_amount: orderData.totalPrice,

@@ -112,7 +112,6 @@ async function run() {
         });
       }
     });
-    
 
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
@@ -122,13 +121,11 @@ async function run() {
       res.send(result);
     });
 
-
     //partner api
-    app.get("/partners", async (req, res) => { 
+    app.get("/partners", async (req, res) => {
       const result = await partnerCollection.find().toArray();
       res.send(result);
-    })
-
+    });
 
     // business apis
     app.post("/business", verifyJwt, async (req, res) => {
@@ -228,12 +225,10 @@ async function run() {
           return res.status(404).json({ error: "Menu item not found" });
         }
 
-        res
-          .status(200)
-          .json({
-            message: "Menu item deleted successfully!",
-            deletedItem: foundMenuItem._id,
-          });
+        res.status(200).json({
+          message: "Menu item deleted successfully!",
+          deletedItem: foundMenuItem._id,
+        });
       } catch (error) {
         console.error("Error deleting menu item:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -356,7 +351,33 @@ async function run() {
       const result = await usersCollection.findOne({ email: email }, options);
       res.send(result);
     });
+    // get specific user data
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email: email });
+      res.send(user);
+    });
 
+    // update the user data
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = req.body;
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          ...data,
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.delete("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await usersCollection.deleteOne(filter);
+      res.send(result);
+    });
 
     // location apis
     app.get("/division", async (req, res) => {
@@ -381,7 +402,6 @@ async function run() {
       const result = await upazilasCollection.find(filter).toArray();
       res.send(result);
     });
-
 
     // customer apis
     app.post("/customer", verifyJwt, async (req, res) => {
@@ -411,7 +431,6 @@ async function run() {
       res.send(result);
     });
 
-
     // give all menu
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
@@ -425,7 +444,6 @@ async function run() {
       const result = await partnerCollection.aggregate(pipeline).toArray();
       res.send(result);
     });
-
 
     // SSL commerce payment
     const store_id = process.env.STORE_ID;
@@ -527,13 +545,6 @@ async function run() {
           res.redirect(`http://localhost:5173/payment/fail`);
         }
       });
-    });
-
-    // get specific user data
-    app.get("/user/:email", async (req, res) => {
-      const email = req.params.email;
-      const user = await usersCollection.findOne({ email: email });
-      res.send(user);
     });
 
     // Send a ping to confirm a successful connection

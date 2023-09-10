@@ -577,19 +577,19 @@ async function run() {
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
         orderData.transactionId = tranId;
-        if (!findRestaurant?.order) {
-          const newOrder = [...(findRestaurant.order || []), orderData];
-          const result1 = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-          // res.send(result1);
-        } else {
-          const newOrder = [...(findRestaurant.order || []), orderData];
-          const result2 = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-          // res.send(result2);
-        }
+        // if (!findRestaurant?.order) {
+        //   const newOrder = [...(findRestaurant.order || []), orderData];
+        //   const result1 = await partnerCollection.updateOne(query, {
+        //     $set: { order: newOrder },
+        //   });
+        //   // res.send(result1);
+        // } else {
+        //   const newOrder = [...(findRestaurant.order || []), orderData];
+        //   const result2 = await partnerCollection.updateOne(query, {
+        //     $set: { order: newOrder },
+        //   });
+        //   // res.send(result2);
+        // }
         console.log("line:380", findRestaurant);
 
         console.log("Redirecting to: ", GatewayPageURL);

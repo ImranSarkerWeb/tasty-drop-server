@@ -113,7 +113,6 @@ async function run() {
       }
     });
 
-
     // Single restaurant data API
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
@@ -122,13 +121,11 @@ async function run() {
       res.send(result);
     });
 
-
     //partner api
     app.get("/partners", async (req, res) => {
       const result = await partnerCollection.find().toArray();
       res.send(result);
-    })
-
+    });
 
     // business apis
     app.post("/business", verifyJwt, async (req, res) => {
@@ -228,12 +225,10 @@ async function run() {
           return res.status(404).json({ error: "Menu item not found" });
         }
 
-        res
-          .status(200)
-          .json({
-            message: "Menu item deleted successfully!",
-            deletedItem: foundMenuItem._id,
-          });
+        res.status(200).json({
+          message: "Menu item deleted successfully!",
+          deletedItem: foundMenuItem._id,
+        });
       } catch (error) {
         console.error("Error deleting menu item:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -356,7 +351,33 @@ async function run() {
       const result = await usersCollection.findOne({ email: email }, options);
       res.send(result);
     });
+    // get specific user data
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email: email });
+      res.send(user);
+    });
 
+    // update the user data
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = req.body;
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          ...data,
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.delete("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await usersCollection.deleteOne(filter);
+      res.send(result);
+    });
 
     // location apis
     app.get("/division", async (req, res) => {
@@ -381,7 +402,6 @@ async function run() {
       const result = await upazilasCollection.find(filter).toArray();
       res.send(result);
     });
-
 
     // customer apis
     app.post("/customer", verifyJwt, async (req, res) => {
@@ -411,15 +431,14 @@ async function run() {
       res.send(result);
     });
 
-
     // give all menu
-    app.get("/api/orders", async (req, res) => {
+    app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
         {
-          $unwind: "$order",
+          $unwind: "$menu",
         },
         {
-          $replaceRoot: { newRoot: "$order" },
+          $replaceRoot: { newRoot: "$menu" },
         },
       ];
       const result = await partnerCollection.aggregate(pipeline).toArray();
@@ -427,7 +446,7 @@ async function run() {
     });
 
     // Update delivery status when accepted by rider
-    app.put('/api/orders/accept/:orderId', async (req, res) => {
+    app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
       console.log(orderId);
       try {
@@ -436,28 +455,29 @@ async function run() {
         // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
 
-
         // Update the delivery status to "Accepted by Rider"
         const result = await partnerCollection.updateOne(
-          { 'order._id': objectId }, // Use the objectId instance
-          { $set: { 'order.delivery': 'Received by Rider' } }
+          { "order._id": objectId }, // Use the objectId instance
+          { $set: { "order.delivery": "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
-          return res.status(404).json({ message: 'Order not found' });
+          return res.status(404).json({ message: "Order not found" });
         }
 
-        res.status(200).json({ message: 'Delivery status updated to Accepted by Rider' });
+        res
+          .status(200)
+          .json({ message: "Delivery status updated to Accepted by Rider" });
       } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ message: "Internal server error" });
       } finally {
         await client.close();
       }
     });
 
     // Update delivery status when declined by rider
-    app.put('/api/orders/decline/:orderId', async (req, res) => {
+    app.put("/api/orders/decline/:orderId", async (req, res) => {
       const { orderId } = req.params;
 
       try {
@@ -468,23 +488,24 @@ async function run() {
 
         // Update the delivery status to "Declined by Rider"
         const result = await partnerCollection.updateOne(
-          { 'order._id': objectId }, // Match the order with the specified orderId
-          { $set: { 'order.delivery': 'Declined by Rider' } } // Update the delivery status
+          { "order._id": objectId }, // Match the order with the specified orderId
+          { $set: { "order.delivery": "Declined by Rider" } } // Update the delivery status
         );
 
         if (result.matchedCount === 0) {
-          return res.status(404).json({ message: 'Order not found' });
+          return res.status(404).json({ message: "Order not found" });
         }
 
-        res.status(200).json({ message: 'Delivery status updated to Declined by Rider' });
+        res
+          .status(200)
+          .json({ message: "Delivery status updated to Declined by Rider" });
       } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ message: "Internal server error" });
       } finally {
         await client.close();
       }
     });
-
 
     // SSL commerce payment
     const store_id = process.env.STORE_ID;
@@ -493,14 +514,13 @@ async function run() {
     const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
       const orderData = req.body;
-      const id = orderData?.resturenId;
+      const id = orderData?.restaurantId;
 
       const data = {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //& Env added ===>
-        //this is the reason why we need cant payment successfully from live site.....
+        success_url: `http://localhost:5000/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
         fail_url: `http://localhost:5000/payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
@@ -574,7 +594,7 @@ async function run() {
         );
         // console.log(result);
         if (result && result.modifiedCount > 0) {
-          res.redirect(`${process.env.LIVE_URL}/payment/success/${tranId}`); //& Env added ===>
+          res.redirect(`http://localhost:5173/payment/success/${tranId}`);
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
@@ -584,17 +604,11 @@ async function run() {
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`${process.env.LIVE_URL}/payment/fail`);  //& Env added ===>
+          res.redirect(`http://localhost:5173/payment/fail`);
         }
       });
     });
 
-    // get specific user data
-    app.get("/user/:email", async (req, res) => {
-      const email = req.params.email;
-      const user = await usersCollection.findOne({ email: email });
-      res.send(user);
-    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(

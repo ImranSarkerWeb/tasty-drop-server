@@ -453,7 +453,7 @@ async function run() {
     //   res.send(result);
     // });
 
-    // give all menu
+    // give all menu, //!what is the useCase of this api?
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
         {
@@ -461,6 +461,20 @@ async function run() {
         },
         {
           $replaceRoot: { newRoot: "$menu" },
+        },
+      ];
+      const result = await partnerCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+
+    //all order data....
+    app.get("/api/orders", async (req, res) => {
+      const pipeline = [
+        {
+          $unwind: "$order",
+        },
+        {
+          $replaceRoot: { newRoot: "$order" },
         },
       ];
       const result = await partnerCollection.aggregate(pipeline).toArray();
@@ -622,7 +636,7 @@ async function run() {
         );
         // console.log(result);
         if (result && result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/${tranId}`);
+          res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
@@ -632,7 +646,7 @@ async function run() {
           { $pull: { order: { transactionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/fail`);
+          res.redirect(`${process.env.LIVE_URL}payment/fail`);
         }
       });
     });

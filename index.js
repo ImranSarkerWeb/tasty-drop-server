@@ -445,6 +445,68 @@ async function run() {
       res.send(result);
     });
 
+    // Update delivery status when accepted by rider
+    app.put("/api/orders/accept/:orderId", async (req, res) => {
+      const { orderId } = req.params;
+      console.log(orderId);
+      try {
+        await client.connect();
+
+        // Create a new instance of ObjectId using the 'new' keyword
+        const objectId = new ObjectId(orderId);
+
+        // Update the delivery status to "Accepted by Rider"
+        const result = await partnerCollection.updateOne(
+          { "order._id": objectId }, // Use the objectId instance
+          { $set: { "order.delivery": "Received by Rider" } }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        res
+          .status(200)
+          .json({ message: "Delivery status updated to Accepted by Rider" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+      } finally {
+        await client.close();
+      }
+    });
+
+    // Update delivery status when declined by rider
+    app.put("/api/orders/decline/:orderId", async (req, res) => {
+      const { orderId } = req.params;
+
+      try {
+        await client.connect();
+
+        // Create a new instance of ObjectId using the 'new' keyword
+        const objectId = new ObjectId(orderId);
+
+        // Update the delivery status to "Declined by Rider"
+        const result = await partnerCollection.updateOne(
+          { "order._id": objectId }, // Match the order with the specified orderId
+          { $set: { "order.delivery": "Declined by Rider" } } // Update the delivery status
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        res
+          .status(200)
+          .json({ message: "Delivery status updated to Declined by Rider" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+      } finally {
+        await client.close();
+      }
+    });
+
     // SSL commerce payment
     const store_id = process.env.STORE_ID;
     const store_passwd = process.env.STORE_PASSWORD;

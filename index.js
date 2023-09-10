@@ -67,6 +67,7 @@ async function run() {
     const divisionCollection = client.db("tastyDB").collection("division");
     const districtsCollection = client.db("tastyDB").collection("districts");
     const upazilasCollection = client.db("tastyDB").collection("upazilas");
+    const orderCollection = client.db("tastyDB").collection("orders");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -118,6 +119,12 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await partnerCollection.findOne(query);
+      res.send(result);
+    });
+
+    //partner api
+    app.get("/partners", async (req, res) => {
+      const result = await partnerCollection.find().toArray();
       res.send(result);
     });
 
@@ -196,7 +203,7 @@ async function run() {
       }
     });
 
-    //& Api for deleting signle menu items by id
+    //& Api for deleting single menu items by id
     app.delete("/delete-menu-item/:email/:menuItemId", async (req, res) => {
       try {
         const { email, menuItemId } = req.params;
@@ -219,12 +226,10 @@ async function run() {
           return res.status(404).json({ error: "Menu item not found" });
         }
 
-        res
-          .status(200)
-          .json({
-            message: "Menu item deleted successfully!",
-            deletedItem: foundMenuItem._id,
-          });
+        res.status(200).json({
+          message: "Menu item deleted successfully!",
+          deletedItem: foundMenuItem._id,
+        });
       } catch (error) {
         console.error("Error deleting menu item:", error);
         res.status(500).json({ error: "Internal server error" });
@@ -232,7 +237,46 @@ async function run() {
     });
 
     //& Api for updating single menu items
-    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {});
+    app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
+      try {
+        const { email, menuItemId } = req.params;
+        const updatedData = req.body;
+        const partner = await partnerCollection.findOne({ email });
+
+        const menuItem = partner.menu.find(
+          (item) => item._id.toString() === menuItemId
+        );
+
+        if (!menuItem) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Menu item not found" });
+        }
+
+        if (menuItem.email !== email) {
+          return res.status(403).json({
+            success: false,
+            message: "Unauthorized to update this menu item",
+          });
+        }
+
+        Object.assign(menuItem, updatedData);
+
+        await partnerCollection.updateOne(
+          { email },
+          { $set: { menu: partner.menu } }
+        );
+
+        return res
+          .status(200)
+          .json({ success: true, message: "Menu item updated successfully" });
+      } catch (error) {
+        console.error(error);
+        return res
+          .status(500)
+          .json({ success: false, message: "Internal server error" });
+      }
+    });
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
@@ -276,6 +320,26 @@ async function run() {
       }
     });
 
+    //& Getting all the orders from the partner collection
+    app.get("/orders/partner", async (req, res) => {
+      try {
+        const partnerEmail = req.query.email;
+        const partner = await partnerCollection.findOne({
+          email: partnerEmail,
+        });
+
+        if (!partner) {
+          return res.status(404).json({ message: "Partner not found" });
+        }
+        const orders = partner.order;
+
+        res.json(orders);
+      } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
     // jwt apis
     app.post("/jwt", async (req, res) => {
       const email = req.body;
@@ -296,7 +360,7 @@ async function run() {
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
-    app.get("/users", verifyJwt, async (req, res) => {
+    app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -308,12 +372,41 @@ async function run() {
       const result = await usersCollection.findOne({ email: email }, options);
       res.send(result);
     });
+    // get specific user data
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = await usersCollection.findOne({ email: email });
+      res.send(user);
+    });
 
-    // loaction apis
+    // update the user data
+    app.patch("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = req.body;
+      console.log(data);
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          ...data,
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.delete("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email };
+      const result = await usersCollection.deleteOne(filter);
+      res.send(result);
+    });
+
+    // location apis
     app.get("/division", async (req, res) => {
       const result = await divisionCollection.find().toArray();
       res.send(result);
     });
+
     app.get("/districts", async (req, res) => {
       const { data } = req.query;
       const filter = {
@@ -322,6 +415,7 @@ async function run() {
       const result = await districtsCollection.find(filter).toArray();
       res.send(result);
     });
+
     app.get("/upazila", async (req, res) => {
       const { data } = req.query;
       const filter = {
@@ -330,33 +424,36 @@ async function run() {
       const result = await upazilasCollection.find(filter).toArray();
       res.send(result);
     });
-    // customer apis
-    app.post("/customer", verifyJwt, async (req, res) => {
-      const data = req.body;
-      console.log(data);
-      const filter = { email: data?.email };
-      const isExist = await customerCollection.findOne(filter);
-      if (isExist) {
-        const updateDocs = {
-          $set: {
-            ...data,
-          },
-        };
-        const result1 = await customerCollection.updateOne(filter, updateDocs);
-        res.send(result1);
-      } else {
-        const result2 = await customerCollection.insertOne(data);
-        res.send(result2);
-      }
-    });
-    app.get("/customer", verifyJwt, async (req, res) => {
-      const email = req.query.email;
-      console.log(email);
-      const filter = { email: email };
-      const result = await customerCollection.findOne(filter);
-      res.send(result);
-    });
-    // give all menu
+
+    // // customer apis
+    // app.post("/customer", verifyJwt, async (req, res) => {
+    //   const data = req.body;
+    //   console.log(data);
+    //   const filter = { email: data?.email };
+    //   const isExist = await customerCollection.findOne(filter);
+    //   if (isExist) {
+    //     const updateDocs = {
+    //       $set: {
+    //         ...data,
+    //       },
+    //     };
+    //     const result1 = await customerCollection.updateOne(filter, updateDocs);
+    //     res.send(result1);
+    //   } else {
+    //     const result2 = await customerCollection.insertOne(data);
+    //     res.send(result2);
+    //   }
+    // });
+
+    // app.get("/customer", verifyJwt, async (req, res) => {
+    //   const email = req.query.email;
+    //   console.log(email);
+    //   const filter = { email: email };
+    //   const result = await customerCollection.findOne(filter);
+    //   res.send(result);
+    // });
+
+    // give all menu, //!what is the useCase of this api?
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
         {
@@ -369,22 +466,98 @@ async function run() {
       const result = await partnerCollection.aggregate(pipeline).toArray();
       res.send(result);
     });
-    // sslcommerz payment
+
+    //all order data....
+    app.get("/api/orders", async (req, res) => {
+      const pipeline = [
+        {
+          $unwind: "$order",
+        },
+        {
+          $replaceRoot: { newRoot: "$order" },
+        },
+      ];
+      const result = await partnerCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    });
+
+    // Update delivery status when accepted by rider
+    app.put("/api/orders/accept/:orderId", async (req, res) => {
+      const { orderId } = req.params;
+      console.log(orderId);
+      try {
+        await client.connect();
+
+        // Create a new instance of ObjectId using the 'new' keyword
+        const objectId = new ObjectId(orderId);
+
+        // Update the delivery status to "Accepted by Rider"
+        const result = await partnerCollection.updateOne(
+          { "order._id": objectId }, // Use the objectId instance
+          { $set: { "order.delivery": "Received by Rider" } }
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        res
+          .status(200)
+          .json({ message: "Delivery status updated to Accepted by Rider" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+      } finally {
+        await client.close();
+      }
+    });
+
+    // Update delivery status when declined by rider
+    app.put("/api/orders/decline/:orderId", async (req, res) => {
+      const { orderId } = req.params;
+
+      try {
+        await client.connect();
+
+        // Create a new instance of ObjectId using the 'new' keyword
+        const objectId = new ObjectId(orderId);
+
+        // Update the delivery status to "Declined by Rider"
+        const result = await partnerCollection.updateOne(
+          { "order._id": objectId }, // Match the order with the specified orderId
+          { $set: { "order.delivery": "Declined by Rider" } } // Update the delivery status
+        );
+
+        if (result.matchedCount === 0) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        res
+          .status(200)
+          .json({ message: "Delivery status updated to Declined by Rider" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+      } finally {
+        await client.close();
+      }
+    });
+
+    // SSL commerce payment
     const store_id = process.env.STORE_ID;
-    const store_passwd = process.env.STORE_PASSWORD;
+    const store_password = process.env.STORE_PASSWORD;
     const is_live = false;
     const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
       const orderData = req.body;
-      const id = orderData?.resturenId;
-      // console.log(id);
-      // console.log(orderData);
+      const id = orderData?.restaurantId;
+
       const data = {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${tranId}`,
-        fail_url: `http://localhost:5000/payment/fail/${tranId}`,
+        success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+        fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -399,7 +572,7 @@ async function run() {
         cus_state: orderData?.homeAddress?.district,
         cus_postcode: "1000",
         cus_country: "Bangladesh",
-        cus_phone: orderData?.customerData?.number,
+        cus_phone: orderData?.customerData?.phone,
         cus_fax: "01711111111",
         ship_name: "Customer Name",
         ship_add1: "Dhaka",
@@ -417,27 +590,36 @@ async function run() {
         res.send({ url: GatewayPageURL });
 
         const query = { _id: new ObjectId(id) };
-        const findResturent = await partnerCollection.findOne(query);
+        const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
-        orderData.tranjectionId = tranId;
-        if (!findResturent?.order) {
-          const newOrder = [...(findResturent.order || []), orderData];
+        orderData.transactionId = tranId;
+        if (!findRestaurant?.order) {
+          const newOrder = [...(findRestaurant.order || []), orderData];
           const result1 = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
           // res.send(result1);
         } else {
-          const newOrder = [...(findResturent.order || []), orderData];
-          const result2 = await partnerCollection.updateOne(query, {
+          const existingOrder = findRestaurant.order || [];
+          const newOrder = [...existingOrder, orderData];
+
+          const result = await partnerCollection.updateOne(query, {
             $set: { order: newOrder },
           });
-          // res.send(result2);
-        }
-        console.log("line:380", findResturent);
 
-        console.log("Redirecting to: ", GatewayPageURL);
+          if (result.modifiedCount > 0) {
+            // Redirect the user to the payment gateway
+            let GatewayPageURL = apiResponse.GatewayPageURL;
+            res.send({ url: GatewayPageURL });
+            console.log("Redirecting to: ", GatewayPageURL);
+          } else {
+            // Handle the case where the update failed
+            res.status(500).json({ message: "Failed to update order" });
+          }
+        }
       });
+
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);
@@ -446,7 +628,7 @@ async function run() {
         const result = await partnerCollection.updateOne(
           {
             // _id: new ObjectId(resturenId),
-            "order.tranjectionId": tranId,
+            "order.transactionId": tranId,
           },
           {
             $set: {
@@ -457,7 +639,7 @@ async function run() {
         );
         // console.log(result);
         if (result && result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/success/${tranId}`);
+          res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
@@ -467,7 +649,7 @@ async function run() {
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
-          res.redirect(`http://localhost:5173/payment/fail`);
+          res.redirect(`${process.env.LIVE_URL}payment/fail`);
         }
       });
     });

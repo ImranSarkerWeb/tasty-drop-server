@@ -469,17 +469,32 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      const pipeline = [
-        {
-          $unwind: "$order",
-        },
-        {
-          $replaceRoot: { newRoot: "$order" },
-        },
-      ];
-      const result = await partnerCollection.aggregate(pipeline).toArray();
-      res.send(result);
+      try {
+        const client = new MongoClient(uri);
+        await client.connect();
+        console.log("Connected to MongoDB");
+
+        const pipeline = [
+          {
+            $unwind: "$order",
+          },
+          {
+            $replaceRoot: { newRoot: "$order" },
+          },
+        ];
+        const result = await partnerCollection.aggregate(pipeline).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        res.status(500).send("Internal Server Error");
+      } finally {
+        // Close the MongoDB client connection
+        await client.close();
+        console.log("MongoDB connection closed");
+      }
     });
+
 
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
@@ -490,11 +505,12 @@ async function run() {
 
         // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
+        console.log(objectId);
 
         // Update the delivery status to "Accepted by Rider"
         const result = await partnerCollection.updateOne(
           { "order._id": objectId }, // Use the objectId instance
-          { $set: { "order.delivery": "Received by Rider" } }
+          { $set: { "order.$.delivery": "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -525,7 +541,7 @@ async function run() {
         // Update the delivery status to "Declined by Rider"
         const result = await partnerCollection.updateOne(
           { "order._id": objectId }, // Match the order with the specified orderId
-          { $set: { "order.delivery": "Declined by Rider" } } // Update the delivery status
+          { $set: { "order.$.delivery": "pending" } } // Update the delivery status
         );
 
         if (result.matchedCount === 0) {
@@ -617,6 +633,10 @@ async function run() {
         }
       });
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> 68c18f894dbca69835ca0da4324703c5e687a784
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);

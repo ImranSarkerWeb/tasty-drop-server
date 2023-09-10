@@ -556,8 +556,8 @@ async function run() {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
-        fail_url: `${process.env.SERVER_URL}/payment/fail/${tranId}`,
+        success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+        fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",

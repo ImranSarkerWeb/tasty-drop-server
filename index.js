@@ -4,7 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const SSLCommerzPayment = require("sslcommerz-lts");
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 const morgan = require("morgan");
@@ -439,34 +439,6 @@ async function run() {
       res.send(result);
     });
 
-    // // customer apis
-    // app.post("/customer", verifyJwt, async (req, res) => {
-    //   const data = req.body;
-    //   console.log(data);
-    //   const filter = { email: data?.email };
-    //   const isExist = await customerCollection.findOne(filter);
-    //   if (isExist) {
-    //     const updateDocs = {
-    //       $set: {
-    //         ...data,
-    //       },
-    //     };
-    //     const result1 = await customerCollection.updateOne(filter, updateDocs);
-    //     res.send(result1);
-    //   } else {
-    //     const result2 = await customerCollection.insertOne(data);
-    //     res.send(result2);
-    //   }
-    // });
-
-    // app.get("/customer", verifyJwt, async (req, res) => {
-    //   const email = req.query.email;
-    //   console.log(email);
-    //   const filter = { email: email };
-    //   const result = await customerCollection.findOne(filter);
-    //   res.send(result);
-    // });
-
     // give all menu, //!what is the useCase of this api?
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
@@ -681,6 +653,24 @@ async function run() {
           res.redirect(`${process.env.LIVE_URL}payment/fail`);
         }
       });
+    });
+
+    // generate client secret
+    // stripe payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      if (price) {
+        const amount = parseFloat(price * 100);
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      }
     });
 
     // Send a ping to confirm a successful connection

@@ -56,7 +56,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
@@ -501,7 +501,7 @@ async function run() {
         res.status(500).send("Internal Server Error");
       } finally {
         // Close the MongoDB client connection
-        await client.close();
+        // await client.close();
         console.log("MongoDB connection closed");
       }
     });
@@ -534,7 +534,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -565,7 +565,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -609,7 +609,7 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL;

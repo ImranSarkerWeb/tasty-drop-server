@@ -183,7 +183,21 @@ async function run() {
 
     // Api for getting restaurant data
     app.get("/restaurants", async (req, res) => {
-      const result = await partnerCollection.find().toArray();
+      const status = req.query.status; // Get the "status" query parameter from the request
+
+      // Define a filter object to filter documents based on the "status" field
+      const filter = {};
+
+      // If "status" query parameter is provided, add it to the filter
+      if (status === "pending") {
+        filter.status = "pending";
+      }
+
+      // Use the filter object in the find query if it's not empty
+      const result = Object.keys(filter).length
+        ? await partnerCollection.find(filter).toArray()
+        : await partnerCollection.find().toArray();
+
       res.send(result);
     });
 
@@ -441,16 +455,30 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      const pipeline = [
-        {
-          $unwind: "$order",
-        },
-        {
-          $replaceRoot: { newRoot: "$order" },
-        },
-      ];
-      const result = await partnerCollection.aggregate(pipeline).toArray();
-      res.send(result);
+      try {
+        const client = new MongoClient(uri);
+        await client.connect();
+        console.log("Connected to MongoDB");
+
+        const pipeline = [
+          {
+            $unwind: "$order",
+          },
+          {
+            $replaceRoot: { newRoot: "$order" },
+          },
+        ];
+        const result = await partnerCollection.aggregate(pipeline).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        res.status(500).send("Internal Server Error");
+      } finally {
+        // Close the MongoDB client connection
+        await client.close();
+        console.log("MongoDB connection closed");
+      }
     });
 
     // Update delivery status when accepted by rider
@@ -462,11 +490,12 @@ async function run() {
 
         // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
+        console.log(objectId);
 
         // Update the delivery status to "Accepted by Rider"
         const result = await partnerCollection.updateOne(
           { "order._id": objectId }, // Use the objectId instance
-          { $set: { "order.delivery": "Received by Rider" } }
+          { $set: { "order.$.delivery": "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -497,7 +526,7 @@ async function run() {
         // Update the delivery status to "Declined by Rider"
         const result = await partnerCollection.updateOne(
           { "order._id": objectId }, // Match the order with the specified orderId
-          { $set: { "order.delivery": "Declined by Rider" } } // Update the delivery status
+          { $set: { "order.$.delivery": "pending" } } // Update the delivery status
         );
 
         if (result.matchedCount === 0) {
@@ -528,8 +557,8 @@ async function run() {
         total_amount: orderData.totalPrice,
         currency: "BDT",
         tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}/payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
-        fail_url: `${process.env.SERVER_URL}/payment/fail/${tranId}`,
+        success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+        fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
         cancel_url: "http://localhost:3030/cancel",
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
@@ -555,9 +584,12 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        console.log(apiResponse);
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
@@ -614,8 +646,8 @@ async function run() {
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         const result = await partnerCollection.updateOne(
-          { "order.transactionId": tranId },
-          { $pull: { order: { transactionId: tranId } } }
+          { "order.tranjectionId": tranId },
+          { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
           res.redirect(`${process.env.LIVE_URL}payment/fail`);

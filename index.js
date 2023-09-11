@@ -183,7 +183,21 @@ async function run() {
 
     // Api for getting restaurant data
     app.get("/restaurants", async (req, res) => {
-      const result = await partnerCollection.find().toArray();
+      const status = req.query.status; // Get the "status" query parameter from the request
+
+      // Define a filter object to filter documents based on the "status" field
+      const filter = {};
+
+      // If "status" query parameter is provided, add it to the filter
+      if (status === "pending") {
+        filter.status = "pending";
+      }
+
+      // Use the filter object in the find query if it's not empty
+      const result = Object.keys(filter).length
+        ? await partnerCollection.find(filter).toArray()
+        : await partnerCollection.find().toArray();
+
       res.send(result);
     });
 
@@ -495,7 +509,6 @@ async function run() {
       }
     });
 
-
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
@@ -599,9 +612,12 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        console.log(apiResponse);
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
@@ -633,10 +649,6 @@ async function run() {
         }
       });
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 68c18f894dbca69835ca0da4324703c5e687a784
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);
@@ -662,8 +674,8 @@ async function run() {
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         const result = await partnerCollection.updateOne(
-          { "order.transactionId": tranId },
-          { $pull: { order: { transactionId: tranId } } }
+          { "order.tranjectionId": tranId },
+          { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
           res.redirect(`${process.env.LIVE_URL}payment/fail`);

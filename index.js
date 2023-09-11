@@ -633,10 +633,6 @@ async function run() {
         }
       });
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 68c18f894dbca69835ca0da4324703c5e687a784
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         // console.log(tranId);

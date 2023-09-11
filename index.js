@@ -4,7 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const SSLCommerzPayment = require("sslcommerz-lts");
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 const morgan = require("morgan");
@@ -56,7 +56,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
@@ -183,8 +183,47 @@ async function run() {
 
     // Api for getting restaurant data
     app.get("/restaurants", async (req, res) => {
-      const result = await partnerCollection.find().toArray();
+      const status = req.query.status; // Get the "status" query parameter from the request
+
+      // Define a filter object to filter documents based on the "status" field
+      const filter = {};
+
+      // If "status" query parameter is provided, add it to the filter
+      if (status === "pending") {
+        filter.status = "pending";
+      }
+
+      // Use the filter object in the find query if it's not empty
+      const result = Object.keys(filter).length
+        ? await partnerCollection.find(filter).toArray()
+        : await partnerCollection.find().toArray();
+
       res.send(result);
+    });
+
+    //update restaurant status
+    app.put("/restaurants/:id/status", async (req, res) => {
+      const restaurantId = req.params.id; // Get the restaurant ID from the URL parameters
+      const { status } = req.body; // Get the new status from the request body
+
+      try {
+        // Update the document by ObjectId
+        const result = await partnerCollection.updateOne(
+          { _id: new ObjectId(restaurantId) },
+          { $set: { status: status } }
+        );
+
+        if (result.modifiedCount === 1) {
+          res
+            .status(200)
+            .json({ message: "Restaurant status updated successfully" });
+        } else {
+          res.status(404).json({ message: "Restaurant not found" });
+        }
+      } catch (error) {
+        console.error("Error updating restaurant status:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
     });
 
     //& Getting all menu's from a restaurant by partner email
@@ -425,34 +464,6 @@ async function run() {
       res.send(result);
     });
 
-    // // customer apis
-    // app.post("/customer", verifyJwt, async (req, res) => {
-    //   const data = req.body;
-    //   console.log(data);
-    //   const filter = { email: data?.email };
-    //   const isExist = await customerCollection.findOne(filter);
-    //   if (isExist) {
-    //     const updateDocs = {
-    //       $set: {
-    //         ...data,
-    //       },
-    //     };
-    //     const result1 = await customerCollection.updateOne(filter, updateDocs);
-    //     res.send(result1);
-    //   } else {
-    //     const result2 = await customerCollection.insertOne(data);
-    //     res.send(result2);
-    //   }
-    // });
-
-    // app.get("/customer", verifyJwt, async (req, res) => {
-    //   const email = req.query.email;
-    //   console.log(email);
-    //   const filter = { email: email };
-    //   const result = await customerCollection.findOne(filter);
-    //   res.send(result);
-    // });
-
     // give all menu, //!what is the useCase of this api?
     app.get("/allDishesMenu", async (req, res) => {
       const pipeline = [
@@ -490,11 +501,10 @@ async function run() {
         res.status(500).send("Internal Server Error");
       } finally {
         // Close the MongoDB client connection
-        await client.close();
+        // await client.close();
         console.log("MongoDB connection closed");
       }
     });
-
 
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
@@ -524,7 +534,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -555,7 +565,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -601,7 +611,10 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        console.log(apiResponse);
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL;
+        res.send({ url: GatewayPageURL });
+
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
@@ -658,13 +671,31 @@ async function run() {
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         const result = await partnerCollection.updateOne(
-          { "order.transactionId": tranId },
-          { $pull: { order: { transactionId: tranId } } }
+          { "order.tranjectionId": tranId },
+          { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {
           res.redirect(`${process.env.LIVE_URL}payment/fail`);
         }
       });
+    });
+
+    // generate client secret
+    // stripe payment intent
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      if (price) {
+        const amount = parseFloat(price * 100);
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      }
     });
 
     // Send a ping to confirm a successful connection

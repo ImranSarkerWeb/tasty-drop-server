@@ -611,10 +611,6 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();

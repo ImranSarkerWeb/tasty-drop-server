@@ -201,6 +201,31 @@ async function run() {
       res.send(result);
     });
 
+    //update restaurant status
+    app.put("/restaurants/:id/status", async (req, res) => {
+      const restaurantId = req.params.id; // Get the restaurant ID from the URL parameters
+      const { status } = req.body; // Get the new status from the request body
+
+      try {
+        // Update the document by ObjectId
+        const result = await partnerCollection.updateOne(
+          { _id: new ObjectId(restaurantId) },
+          { $set: { status: status } }
+        );
+
+        if (result.modifiedCount === 1) {
+          res
+            .status(200)
+            .json({ message: "Restaurant status updated successfully" });
+        } else {
+          res.status(404).json({ message: "Restaurant not found" });
+        }
+      } catch (error) {
+        console.error("Error updating restaurant status:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     //& Getting all menu's from a restaurant by partner email
     app.get("/restaurant-data", async (req, res) => {
       try {

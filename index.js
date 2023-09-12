@@ -226,6 +226,29 @@ async function run() {
       }
     });
 
+    //delete restaurant
+
+    app.delete("/restaurants/:id", async (req, res) => {
+      try {
+        const restaurantId = req.params.id; // Get the restaurant ID from the URL parameters
+
+        const restaurant = await partnerCollection.findOne({
+          _id: new ObjectId(restaurantId),
+        });
+
+        if (!restaurant) {
+          return res.status(404).json({ message: "Restaurant not found" });
+        }
+
+        await partnerCollection.deleteOne({ _id: new ObjectId(restaurantId) });
+
+        res.status(204).json({ message: "Restaurant deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting restaurant:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     //& Getting all menu's from a restaurant by partner email
     app.get("/restaurant-data", async (req, res) => {
       try {

@@ -543,7 +543,7 @@ async function run() {
       const { orderId } = req.params;
 
       try {
-        await client.connect();
+        // await client.connect();
 
         // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);

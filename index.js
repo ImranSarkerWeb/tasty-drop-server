@@ -56,7 +56,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
@@ -222,6 +222,29 @@ async function run() {
         }
       } catch (error) {
         console.error("Error updating restaurant status:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
+    //delete restaurant
+
+    app.delete("/restaurants/:id", async (req, res) => {
+      try {
+        const restaurantId = req.params.id; // Get the restaurant ID from the URL parameters
+
+        const restaurant = await partnerCollection.findOne({
+          _id: new ObjectId(restaurantId),
+        });
+
+        if (!restaurant) {
+          return res.status(404).json({ message: "Restaurant not found" });
+        }
+
+        await partnerCollection.deleteOne({ _id: new ObjectId(restaurantId) });
+
+        res.status(204).json({ message: "Restaurant deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting restaurant:", error);
         res.status(500).json({ message: "Internal server error" });
       }
     });
@@ -501,7 +524,7 @@ async function run() {
         res.status(500).send("Internal Server Error");
       } finally {
         // Close the MongoDB client connection
-        await client.close();
+        // await client.close();
         console.log("MongoDB connection closed");
       }
     });
@@ -534,7 +557,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -565,7 +588,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -609,12 +632,8 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();

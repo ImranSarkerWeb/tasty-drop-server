@@ -415,6 +415,22 @@ async function run() {
       res.send(result);
     });
 
+    // unsubscribe the user subscription
+    app.patch("/unsubscribe/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = req.body;
+      console.log(data);
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          ...data,
+          paymentInfo: "",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // location apis
     app.get("/division", async (req, res) => {
       const result = await divisionCollection.find().toArray();

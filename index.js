@@ -298,6 +298,35 @@ async function run() {
       }
     });
 
+    //& Deleting a order api
+    app.delete('/orders/delete/:id', async(req, res)=>{
+      const orderId = req.params.id;
+       try {
+         const query = {
+           _id: new ObjectId(orderId), 
+         };
+
+         const update = {
+           $pull: {
+             order: {
+               _id: new ObjectId(orderId), // Convert orderId to ObjectId
+             },
+           },
+         };
+
+         const result = await partnerCollection.updateOne(query, update);
+
+         if (result.modifiedCount === 1) {
+           res.status(200).json({ message: "Order deleted successfully" });
+         } else {
+           res.status(404).json({ message: "Order not found" });
+         }
+       } catch (err) {
+         console.error("Error deleting order:", err);
+         res.status(500).json({ message: "Internal server error" });
+       }
+    })
+
     //& Api for updating single menu items
     app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
       try {

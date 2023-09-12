@@ -226,6 +226,29 @@ async function run() {
       }
     });
 
+    //delete restaurant
+
+    app.delete("/restaurants/:id", async (req, res) => {
+      try {
+        const restaurantId = req.params.id; // Get the restaurant ID from the URL parameters
+
+        const restaurant = await partnerCollection.findOne({
+          _id: new ObjectId(restaurantId),
+        });
+
+        if (!restaurant) {
+          return res.status(404).json({ message: "Restaurant not found" });
+        }
+
+        await partnerCollection.deleteOne({ _id: new ObjectId(restaurantId) });
+
+        res.status(204).json({ message: "Restaurant deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting restaurant:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     //& Getting all menu's from a restaurant by partner email
     app.get("/restaurant-data", async (req, res) => {
       try {
@@ -274,6 +297,35 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+
+    //& Deleting a order api
+    app.delete('/orders/delete/:id', async(req, res)=>{
+      const orderId = req.params.id;
+       try {
+         const query = {
+           _id: new ObjectId(orderId), 
+         };
+
+         const update = {
+           $pull: {
+             order: {
+               _id: new ObjectId(orderId), // Convert orderId to ObjectId
+             },
+           },
+         };
+
+         const result = await partnerCollection.updateOne(query, update);
+
+         if (result.modifiedCount === 1) {
+           res.status(200).json({ message: "Order deleted successfully" });
+         } else {
+           res.status(404).json({ message: "Order not found" });
+         }
+       } catch (err) {
+         console.error("Error deleting order:", err);
+         res.status(500).json({ message: "Internal server error" });
+       }
+    })
 
     //& Api for updating single menu items
     app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
@@ -611,10 +663,6 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-
         const query = { _id: new ObjectId(id) };
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();

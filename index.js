@@ -540,7 +540,7 @@ async function run() {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       } finally {
-        await client.close();
+        // await client.close();
       }
     });
 
@@ -584,7 +584,7 @@ async function run() {
         ship_country: "Bangladesh",
       };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL;

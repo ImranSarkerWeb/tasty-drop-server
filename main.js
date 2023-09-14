@@ -1,40 +1,49 @@
-// const data = {
-//   total_amount: 100,
-//   currency: "BDT",
-//   tran_id: "REF123", // use unique tran_id for each api call
-//   success_url: "http://localhost:3030/success",
-//   fail_url: "http://localhost:3030/fail",
-//   cancel_url: "http://localhost:3030/cancel",
-//   ipn_url: "http://localhost:3030/ipn",
-//   shipping_method: "Courier",
-//   product_name: "Computer.",
-//   product_category: "Electronic",
-//   product_profile: "general",
-//   cus_name: "Customer Name",
-//   cus_email: "customer@example.com",
-//   cus_add1: "Dhaka",
-//   cus_add2: "Dhaka",
-//   cus_city: "Dhaka",
-//   cus_state: "Dhaka",
-//   cus_postcode: "1000",
-//   cus_country: "Bangladesh",
-//   cus_phone: "01711111111",
-//   cus_fax: "01711111111",
-//   ship_name: "Customer Name",
-//   ship_add1: "Dhaka",
-//   ship_add2: "Dhaka",
-//   ship_city: "Dhaka",
-//   ship_state: "Dhaka",
-//   ship_postcode: 1000,
-//   ship_country: "Bangladesh",
-// };
+//& Updating a restaurant info by it's id
+app.put("/partner/:id", async (req, res) => {
+  const partnerId = req.params.id;
+  const data = req.body;
+  try {
+    const filter = { _id: new ObjectId(partnerId) };
+    const updatedDoc = {
+      $set: {
+        ...data,
+      },
+    };
+    const result = await partnerCollection.updateOne(filter, updatedDoc);
+    if (result.modifiedCount > 0) {
+      res.json({
+        success: true,
+        message: "Partner information updated successfully!",
+        result,
+      });
+    } else {
+      res
+        .status(404)
+        .json({ success: false, message: "Partner info not found" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
-cus_name: orderData?.customerData?.name,
-        cus_email: orderData?.customerData?.email,
-        cus_add1: orderData?.homeAddress?.area,
-        cus_add2: orderData?.homeAddress?.upazila,
-        cus_city: orderData?.homeAddress?.district,
-        cus_state: orderData?.homeAddress?.district,
+//& Getting all the orders from the order collection by restaurant id
+app.get("/orders/partner/:id", async (req, res) => {
+  try {
+    const restaurantId = req.params.id;
+    const partnerOrders = await orderCollection
+      .find({
+        restaurantId: restaurantId,
+      })
+      .toArray();
 
-        cus_phone: orderData?.customerData?.number,
-        total_amount: orderData.totalPrice,
+    if (!partnerOrders) {
+      return res.status(404).json({ message: "Partner not found" });
+    }
+
+    res.json(partnerOrders);
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});

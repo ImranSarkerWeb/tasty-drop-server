@@ -415,9 +415,11 @@ async function run() {
     app.get("/orders/partner", async (req, res) => {
       try {
         const partnerEmail = req.query.email;
-        const partner = await partnerCollection.findOne({
-          email: partnerEmail,
-        });
+        const partnerOrders = await orderCollection
+          .find({
+            ownerEmail: partnerEmail,
+          })
+          .toArray();
 
         if (!partner) {
           return res.status(404).json({ message: "Partner not found" });
@@ -455,6 +457,28 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+
+    app.put("/users/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const newRole = req.body.role;
+        console.log(userId, newRole);
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: { role: newRole } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ message: "User role updated successfully" });
+      } catch (error) {
+        console.error("Error updating user role:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     app.get("/userRole", verifyJwt, async (req, res) => {
       const { email } = req.query;
       const options = {
@@ -548,28 +572,8 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      try {
-        const client = new MongoClient(uri);
-        console.log("Connected to MongoDB");
-
-        const pipeline = [
-          {
-            $unwind: "$order",
-          },
-          {
-            $replaceRoot: { newRoot: "$order" },
-          },
-        ];
-        const result = await partnerCollection.aggregate(pipeline).toArray();
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        res.status(500).send("Internal Server Error");
-      } finally {
-        // Close the MongoDB client connection
-        // await client.close();
-      }
+      const result = await orderCollection.find().toArray();
+      res.send(result);
     });
 
     // Update delivery status when accepted by rider
@@ -577,16 +581,12 @@ async function run() {
       const { orderId } = req.params;
       console.log(orderId);
       try {
-        await client.connect();
-
-        // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
-        console.log(objectId);
 
         // Update the delivery status to "Accepted by Rider"
-        const result = await partnerCollection.updateOne(
-          { "order._id": objectId }, // Use the objectId instance
-          { $set: { "order.$.delivery": "Received by Rider" } }
+        const result = await orderCollection.updateOne(
+          { _id: objectId }, // Use "_id" instead of "order._id"
+          { $set: { delivery: "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -599,8 +599,6 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
-      } finally {
-        // await client.close();
       }
     });
 
@@ -609,15 +607,12 @@ async function run() {
       const { orderId } = req.params;
 
       try {
-        // await client.connect();
-
-        // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
 
         // Update the delivery status to "Declined by Rider"
-        const result = await partnerCollection.updateOne(
-          { "order._id": objectId }, // Match the order with the specified orderId
-          { $set: { "order.$.delivery": "pending" } } // Update the delivery status
+        const result = await orderCollection.updateOne(
+          { _id: objectId },
+          { $set: { delivery: "Declined by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -630,8 +625,6 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
-      } finally {
-        // await client.close();
       }
     });
 
@@ -689,13 +682,12 @@ async function run() {
         const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
-        orderData.transactionId = tranId;
-        if (!findRestaurant?.order) {
-          const newOrder = [...(findRestaurant.order || []), orderData];
-          const result1 = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-          // res.send(result1);
+        orderData.delivery = "pending";
+        const insertResult = await orderCollection.insertOne(orderData);
+        if (insertResult.acknowledged) {
+          console.log("under if condition");
+          let gatewayPageURL = apiResponse.GatewayPageURL;
+          res.send({ url: gatewayPageURL });
         } else {
           const existingOrder = findRestaurant.order || [];
           const newOrder = [...existingOrder, orderData];
@@ -724,12 +716,12 @@ async function run() {
         const result = await partnerCollection.updateOne(
           {
             // _id: new ObjectId(resturenId),
-            "order.transactionId": tranId,
+            transactionId: tranId,
           },
           {
             $set: {
-              "order.$.paymentStatus": newPaymentStatus,
-              "order.$.delivery": "pending",
+              paymentStatus: newPaymentStatus,
+              transactionId: tranId,
             },
           }
         );
@@ -741,8 +733,8 @@ async function run() {
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
-        const result = await partnerCollection.updateOne(
-          { "order.tranjectionId": tranId },
+        const result = await orderCollection.updateOne(
+          { tranjectionId: tranId },
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {

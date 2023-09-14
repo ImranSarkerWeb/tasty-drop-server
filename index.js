@@ -298,6 +298,35 @@ async function run() {
       }
     });
 
+    //& Deleting a order api
+    app.delete('/orders/delete/:id', async (req, res) => {
+      const orderId = req.params.id;
+      try {
+        const query = {
+          _id: new ObjectId(orderId),
+        };
+
+        const update = {
+          $pull: {
+            order: {
+              _id: new ObjectId(orderId), // Convert orderId to ObjectId
+            },
+          },
+        };
+
+        const result = await partnerCollection.updateOne(query, update);
+
+        if (result.modifiedCount === 1) {
+          res.status(200).json({ message: "Order deleted successfully" });
+        } else {
+          res.status(404).json({ message: "Order not found" });
+        }
+      } catch (err) {
+        console.error("Error deleting order:", err);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    })
+
     //& Api for updating single menu items
     app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
       try {
@@ -342,6 +371,7 @@ async function run() {
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
+      console.log(data);
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);
       if (data.outletName) {
@@ -382,20 +412,19 @@ async function run() {
       }
     });
 
-    //& Getting all the orders from the partner collection
+    //& Getting all the orders from the order collection
     app.get("/orders/partner", async (req, res) => {
       try {
         const partnerEmail = req.query.email;
-        const partner = await partnerCollection.findOne({
-          email: partnerEmail,
-        });
+        const partnerOrders = await orderCollection.find({
+          ownerEmail: partnerEmail,
+        }).toArray();
 
-        if (!partner) {
+        if (!partnerOrders) {
           return res.status(404).json({ message: "Partner not found" });
         }
-        const orders = partner.order;
 
-        res.json(orders);
+        res.json(partnerOrders);
       } catch (error) {
         console.error("Error:", error);
         res.status(500).json({ message: "Server error" });
@@ -463,6 +492,22 @@ async function run() {
       res.send(result);
     });
 
+    // unsubscribe the user subscription
+    app.patch("/unsubscribe/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = req.body;
+      console.log(data);
+      const filter = { email: email };
+      const updateDoc = {
+        $set: {
+          ...data,
+          paymentInfo: "",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // location apis
     app.get("/division", async (req, res) => {
       const result = await divisionCollection.find().toArray();
@@ -503,47 +548,22 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      try {
-        const client = new MongoClient(uri);
-        await client.connect();
-        console.log("Connected to MongoDB");
-
-        const pipeline = [
-          {
-            $unwind: "$order",
-          },
-          {
-            $replaceRoot: { newRoot: "$order" },
-          },
-        ];
-        const result = await partnerCollection.aggregate(pipeline).toArray();
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        res.status(500).send("Internal Server Error");
-      } finally {
-        // Close the MongoDB client connection
-        // await client.close();
-        console.log("MongoDB connection closed");
-      }
+      const result = await orderCollection.find().toArray();
+      res.send(result);
     });
+
 
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
       console.log(orderId);
       try {
-        await client.connect();
-
-        // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
-        console.log(objectId);
 
         // Update the delivery status to "Accepted by Rider"
-        const result = await partnerCollection.updateOne(
-          { "order._id": objectId }, // Use the objectId instance
-          { $set: { "order.$.delivery": "Received by Rider" } }
+        const result = await orderCollection.updateOne(
+          { "_id": objectId }, // Use "_id" instead of "order._id"
+          { $set: { "delivery": "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -556,25 +576,21 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
-      } finally {
-        // await client.close();
       }
     });
+
 
     // Update delivery status when declined by rider
     app.put("/api/orders/decline/:orderId", async (req, res) => {
       const { orderId } = req.params;
 
       try {
-        await client.connect();
-
-        // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
 
         // Update the delivery status to "Declined by Rider"
-        const result = await partnerCollection.updateOne(
-          { "order._id": objectId }, // Match the order with the specified orderId
-          { $set: { "order.$.delivery": "pending" } } // Update the delivery status
+        const result = await orderCollection.updateOne(
+          { "_id": objectId },
+          { $set: { "delivery": "Declined by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -587,19 +603,18 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
-      } finally {
-        // await client.close();
       }
     });
 
+
     // SSL commerce payment
-    const store_id = process.env.STORE_ID;
-    const store_password = process.env.STORE_PASSWORD;
-    const is_live = false;
-    const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
+      const store_id = process.env.STORE_ID;
+      const store_password = process.env.STORE_PASSWORD;
+      const is_live = false;
+      const tranId = new ObjectId().toString();
       const orderData = req.body;
-      const id = orderData?.restaurantId;
+      console.log(orderData);
 
       const data = {
         total_amount: orderData.totalPrice,
@@ -634,63 +649,43 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        const query = { _id: new ObjectId(id) };
-        const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
-        orderData.transactionId = tranId;
-        if (!findRestaurant?.order) {
-          const newOrder = [...(findRestaurant.order || []), orderData];
-          const result1 = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-          // res.send(result1);
+        orderData.delivery = "pending";
+        const insertResult = await orderCollection.insertOne(orderData);
+        if (insertResult.acknowledged) {
+          console.log('under if condition');
+          let gatewayPageURL = apiResponse.GatewayPageURL;
+          res.send({ url: gatewayPageURL });
         } else {
-          const existingOrder = findRestaurant.order || [];
-          const newOrder = [...existingOrder, orderData];
-
-          const result = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-
-          if (result.modifiedCount > 0) {
-            // Redirect the user to the payment gateway
-            let GatewayPageURL = apiResponse.GatewayPageURL;
-            res.send({ url: GatewayPageURL });
-            console.log("Redirecting to: ", GatewayPageURL);
-          } else {
-            // Handle the case where the update failed
-            res.status(500).json({ message: "Failed to update order" });
-          }
+          res.status(500).json({ message: "Failed to insert order" });
         }
       });
 
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
-        // console.log(tranId);
         const newPaymentStatus = true;
 
-        const result = await partnerCollection.updateOne(
+        const result = await orderCollection.updateOne(
           {
             // _id: new ObjectId(resturenId),
-            "order.transactionId": tranId,
+            "transactionId": tranId,
           },
           {
             $set: {
-              "order.$.paymentStatus": newPaymentStatus,
-              "order.$.delivery": "pending",
+              "paymentStatus": newPaymentStatus,
+              "transactionId": tranId,
             },
           }
         );
-        // console.log(result);
         if (result && result.modifiedCount > 0) {
           res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
-        const result = await partnerCollection.updateOne(
-          { "order.tranjectionId": tranId },
+        const result = await orderCollection.updateOne(
+          { "tranjectionId": tranId },
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {

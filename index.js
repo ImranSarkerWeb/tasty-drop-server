@@ -420,7 +420,6 @@ async function run() {
         }
       }
     });
-
     //& Updating a restaurant info by it's id
     app.put("/partner/:id", async (req, res) => {
       const partnerId = req.params.id;
@@ -429,7 +428,7 @@ async function run() {
         const filter = { _id: new ObjectId(partnerId) };
         const updatedDoc = {
           $set: {
-            ...data
+            ...data,
           },
         };
         const result = await partnerCollection.updateOne(filter, updatedDoc);

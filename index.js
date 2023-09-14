@@ -371,7 +371,6 @@ async function run() {
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
-      console.log(data);
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);
       if (data.outletName) {
@@ -412,7 +411,7 @@ async function run() {
       }
     });
 
-    //& Getting all the orders from the order collection
+    //& Getting all the orders from the partner collection
     app.get("/orders/partner", async (req, res) => {
       try {
         const partnerEmail = req.query.email;
@@ -422,11 +421,12 @@ async function run() {
           })
           .toArray();
 
-        if (!partnerOrders) {
+        if (!partner) {
           return res.status(404).json({ message: "Partner not found" });
         }
+        const orders = partner.order;
 
-        res.json(partnerOrders);
+        res.json(orders);
       } catch (error) {
         console.error("Error:", error);
         res.status(500).json({ message: "Server error" });
@@ -628,14 +628,22 @@ async function run() {
       }
     });
 
+    // get specific user order data
+    app.get("/orders/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = { "customerData.email": email };
+      const result = await orderCollection.find(filter).toArray();
+      res.send(result);
+    });
+
     // SSL commerce payment
+    const store_id = process.en.STORE_ID;
+    const store_password = process.env.STORE_PASSWORD;
+    const is_live = false;
+    const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
-      const store_id = process.env.STORE_ID;
-      const store_password = process.env.STORE_PASSWORD;
-      const is_live = false;
-      const tranId = new ObjectId().toString();
       const orderData = req.body;
-      console.log(orderData);
+      const id = orderData?.restaurantId;
 
       const data = {
         total_amount: orderData.totalPrice,
@@ -670,6 +678,8 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
+        const query = { _id: new ObjectId(id) };
+        const findRestaurant = await partnerCollection.findOne(query);
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
         orderData.delivery = "pending";
@@ -679,15 +689,31 @@ async function run() {
           let gatewayPageURL = apiResponse.GatewayPageURL;
           res.send({ url: gatewayPageURL });
         } else {
-          res.status(500).json({ message: "Failed to insert order" });
+          const existingOrder = findRestaurant.order || [];
+          const newOrder = [...existingOrder, orderData];
+
+          const result = await partnerCollection.updateOne(query, {
+            $set: { order: newOrder },
+          });
+
+          if (result.modifiedCount > 0) {
+            // Redirect the user to the payment gateway
+            let GatewayPageURL = apiResponse.GatewayPageURL;
+            res.send({ url: GatewayPageURL });
+            console.log("Redirecting to: ", GatewayPageURL);
+          } else {
+            // Handle the case where the update failed
+            res.status(500).json({ message: "Failed to update order" });
+          }
         }
       });
 
       app.post("/payment/success/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
+        // console.log(tranId);
         const newPaymentStatus = true;
 
-        const result = await orderCollection.updateOne(
+        const result = await partnerCollection.updateOne(
           {
             // _id: new ObjectId(resturenId),
             transactionId: tranId,
@@ -699,8 +725,10 @@ async function run() {
             },
           }
         );
+        // console.log(result);
         if (result && result.modifiedCount > 0) {
-          res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
+          // res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
+          res.send();
         }
       });
       app.post("/payment/fail/:tranId", async (req, res) => {

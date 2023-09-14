@@ -122,6 +122,15 @@ async function run() {
       res.send(result);
     });
 
+    //& Getting single restaurant data by partner email
+    app.get("/restaurant/partnerEmail", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const query = { email: email };
+      const result = await partnerCollection.findOne(query);
+      res.send(result);
+    });
+
     //partner api
     app.get("/partners", async (req, res) => {
       const result = await partnerCollection.find().toArray();
@@ -412,13 +421,42 @@ async function run() {
       }
     });
 
-    //& Getting all the orders from the order collection
-    app.get("/orders/partner", async (req, res) => {
+    //& Updating a restaurant info by it's id
+    app.put("/partner/:id", async (req, res) => {
+      const partnerId = req.params.id;
+      const data = req.body;
       try {
-        const partnerEmail = req.query.email;
+        const filter = { _id: new ObjectId(partnerId) };
+        const updatedDoc = {
+          $set: {
+            ...data
+          },
+        };
+        const result = await partnerCollection.updateOne(filter, updatedDoc);
+        if (result.modifiedCount > 0) {
+          res.json({
+            success: true,
+            message: "Partner information updated successfully!",
+            result,
+          });
+        } else {
+          res
+            .status(404)
+            .json({ success: false, message: "Partner info not found" });
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
+    //& Getting all the orders from the order collection by restaurant id
+    app.get("/orders/partner/:id", async (req, res) => {
+      try {
+        const restaurantId = req.params.id;
         const partnerOrders = await orderCollection
           .find({
-            ownerEmail: partnerEmail,
+            restaurantId: restaurantId,
           })
           .toArray();
 
@@ -493,8 +531,6 @@ async function run() {
       const user = await usersCollection.findOne({ email: email });
       res.send(user);
     });
-
-    //& Delete user data
 
     // update the user data
     app.patch("/user/:email", async (req, res) => {
@@ -705,6 +741,7 @@ async function run() {
           res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
         }
       });
+
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         const result = await orderCollection.updateOne(

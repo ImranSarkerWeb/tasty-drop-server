@@ -412,20 +412,19 @@ async function run() {
       }
     });
 
-    //& Getting all the orders from the partner collection
+    //& Getting all the orders from the order collection
     app.get("/orders/partner", async (req, res) => {
       try {
         const partnerEmail = req.query.email;
-        const partner = await partnerCollection.findOne({
-          email: partnerEmail,
-        });
+        const partnerOrders = await orderCollection.find({
+          ownerEmail: partnerEmail,
+        }).toArray();
 
-        if (!partner) {
+        if (!partnerOrders) {
           return res.status(404).json({ message: "Partner not found" });
         }
-        const orders = partner.order;
 
-        res.json(orders);
+        res.json(partnerOrders);
       } catch (error) {
         console.error("Error:", error);
         res.status(500).json({ message: "Server error" });

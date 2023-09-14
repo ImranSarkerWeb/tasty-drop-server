@@ -470,6 +470,8 @@ async function run() {
       res.send(user);
     });
 
+    //& Delete user data
+
     // update the user data
     app.patch("/user/:email", async (req, res) => {
       const email = req.params.email;

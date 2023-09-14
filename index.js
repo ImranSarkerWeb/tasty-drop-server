@@ -299,7 +299,7 @@ async function run() {
     });
 
     //& Deleting a order api
-    app.delete('/orders/delete/:id', async (req, res) => {
+    app.delete("/orders/delete/:id", async (req, res) => {
       const orderId = req.params.id;
       try {
         const query = {
@@ -325,7 +325,7 @@ async function run() {
         console.error("Error deleting order:", err);
         res.status(500).json({ message: "Internal server error" });
       }
-    })
+    });
 
     //& Api for updating single menu items
     app.put("/update-menu-item/:email/:menuItemId", async (req, res) => {
@@ -416,9 +416,11 @@ async function run() {
     app.get("/orders/partner", async (req, res) => {
       try {
         const partnerEmail = req.query.email;
-        const partnerOrders = await orderCollection.find({
-          ownerEmail: partnerEmail,
-        }).toArray();
+        const partnerOrders = await orderCollection
+          .find({
+            ownerEmail: partnerEmail,
+          })
+          .toArray();
 
         if (!partnerOrders) {
           return res.status(404).json({ message: "Partner not found" });
@@ -455,6 +457,28 @@ async function run() {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
+
+    app.put("/users/:id", async (req, res) => {
+      try {
+        const userId = req.params.id;
+        const newRole = req.body.role;
+        console.log(userId, newRole);
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) },
+          { $set: { role: newRole } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ message: "User role updated successfully" });
+      } catch (error) {
+        console.error("Error updating user role:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
+
     app.get("/userRole", verifyJwt, async (req, res) => {
       const { email } = req.query;
       const options = {
@@ -552,7 +576,6 @@ async function run() {
       res.send(result);
     });
 
-
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
@@ -562,8 +585,8 @@ async function run() {
 
         // Update the delivery status to "Accepted by Rider"
         const result = await orderCollection.updateOne(
-          { "_id": objectId }, // Use "_id" instead of "order._id"
-          { $set: { "delivery": "Received by Rider" } }
+          { _id: objectId }, // Use "_id" instead of "order._id"
+          { $set: { delivery: "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -579,7 +602,6 @@ async function run() {
       }
     });
 
-
     // Update delivery status when declined by rider
     app.put("/api/orders/decline/:orderId", async (req, res) => {
       const { orderId } = req.params;
@@ -589,8 +611,8 @@ async function run() {
 
         // Update the delivery status to "Declined by Rider"
         const result = await orderCollection.updateOne(
-          { "_id": objectId },
-          { $set: { "delivery": "Declined by Rider" } }
+          { _id: objectId },
+          { $set: { delivery: "Declined by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -605,7 +627,6 @@ async function run() {
         res.status(500).json({ message: "Internal server error" });
       }
     });
-
 
     // SSL commerce payment
     app.post("/order", async (req, res) => {
@@ -654,7 +675,7 @@ async function run() {
         orderData.delivery = "pending";
         const insertResult = await orderCollection.insertOne(orderData);
         if (insertResult.acknowledged) {
-          console.log('under if condition');
+          console.log("under if condition");
           let gatewayPageURL = apiResponse.GatewayPageURL;
           res.send({ url: gatewayPageURL });
         } else {
@@ -669,12 +690,12 @@ async function run() {
         const result = await orderCollection.updateOne(
           {
             // _id: new ObjectId(resturenId),
-            "transactionId": tranId,
+            transactionId: tranId,
           },
           {
             $set: {
-              "paymentStatus": newPaymentStatus,
-              "transactionId": tranId,
+              paymentStatus: newPaymentStatus,
+              transactionId: tranId,
             },
           }
         );
@@ -685,7 +706,7 @@ async function run() {
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
         const result = await orderCollection.updateOne(
-          { "tranjectionId": tranId },
+          { tranjectionId: tranId },
           { $pull: { order: { tranjectionId: tranId } } }
         );
         if (result.modifiedCount > 0) {

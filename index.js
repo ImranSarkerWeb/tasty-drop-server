@@ -549,47 +549,22 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      try {
-        const client = new MongoClient(uri);
-        await client.connect();
-        console.log("Connected to MongoDB");
-
-        const pipeline = [
-          {
-            $unwind: "$order",
-          },
-          {
-            $replaceRoot: { newRoot: "$order" },
-          },
-        ];
-        const result = await partnerCollection.aggregate(pipeline).toArray();
-
-        res.send(result);
-      } catch (error) {
-        console.error("Error fetching orders:", error);
-        res.status(500).send("Internal Server Error");
-      } finally {
-        // Close the MongoDB client connection
-        // await client.close();
-        console.log("MongoDB connection closed");
-      }
+      const result = await orderCollection.find().toArray();
+      res.send(result);
     });
+
 
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
       console.log(orderId);
       try {
-        await client.connect();
-
-        // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
-        console.log(objectId);
 
         // Update the delivery status to "Accepted by Rider"
-        const result = await partnerCollection.updateOne(
-          { "order._id": objectId }, // Use the objectId instance
-          { $set: { "order.$.delivery": "Received by Rider" } }
+        const result = await orderCollection.updateOne(
+          { "_id": objectId }, // Use "_id" instead of "order._id"
+          { $set: { "delivery": "Received by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -602,25 +577,21 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
-      } finally {
-        // await client.close();
       }
     });
+
 
     // Update delivery status when declined by rider
     app.put("/api/orders/decline/:orderId", async (req, res) => {
       const { orderId } = req.params;
 
       try {
-        // await client.connect();
-
-        // Create a new instance of ObjectId using the 'new' keyword
         const objectId = new ObjectId(orderId);
 
         // Update the delivery status to "Declined by Rider"
-        const result = await partnerCollection.updateOne(
-          { "order._id": objectId }, // Match the order with the specified orderId
-          { $set: { "order.$.delivery": "pending" } } // Update the delivery status
+        const result = await orderCollection.updateOne(
+          { "_id": objectId },
+          { $set: { "delivery": "Declined by Rider" } }
         );
 
         if (result.matchedCount === 0) {
@@ -633,8 +604,6 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
-      } finally {
-        // await client.close();
       }
     });
 
@@ -683,7 +652,7 @@ async function run() {
       sslcz.init(data).then(async (apiResponse) => {
         orderData._id = new ObjectId();
         orderData.paymentStatus = false;
-        orderData.transactionId = tranId;
+        orderData.delivery = "pending";
         const insertResult = await orderCollection.insertOne(orderData);
         if (insertResult.acknowledged) {
           console.log('under if condition');
@@ -706,7 +675,7 @@ async function run() {
           {
             $set: {
               "paymentStatus": newPaymentStatus,
-              "delivery": "pending",
+              "transactionId": tranId,
             },
           }
         );

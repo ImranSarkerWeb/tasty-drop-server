@@ -202,10 +202,14 @@ async function run() {
         filter.status = "pending";
       }
 
+      const sortOrder = -1;
       // Use the filter object in the find query if it's not empty
       const result = Object.keys(filter).length
-        ? await partnerCollection.find(filter).toArray()
-        : await partnerCollection.find().toArray();
+        ? await partnerCollection
+            .find(filter)
+            .sort({ date: sortOrder })
+            .toArray()
+        : await partnerCollection.find().sort({ date: sortOrder }).toArray();
 
       res.send(result);
     });
@@ -457,6 +461,7 @@ async function run() {
           .find({
             restaurantId: restaurantId,
           })
+          .sort({ orderTime: -1, orderDate: -1 })
           .toArray();
 
         if (!partnerOrders) {

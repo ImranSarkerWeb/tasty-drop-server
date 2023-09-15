@@ -461,7 +461,7 @@ async function run() {
           .find({
             restaurantId: restaurantId,
           })
-          .sort({ orderDate: -1 })
+          .sort({ orderTime: -1, orderDate: -1 })
           .toArray();
 
         if (!partnerOrders) {

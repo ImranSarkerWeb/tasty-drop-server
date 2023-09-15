@@ -674,6 +674,15 @@ async function run() {
       const orderData = req.body;
       console.log(orderData);
 
+    if(!orderData?.cashOnDelivery){
+      //  const orderDate = {homeAddress : orderData?.homeAddress,
+      //   orderInfo: orderData?.orderInfo,
+      //   totalPrice:orderData?.totalPrice,
+      //   selectedTip:orderData?.selectedTip,
+      //   customerData : orderData?.customerData,
+      //   restaurantId : orderData?.restaurantId ,
+      //   orderDate: orderData?.orderData,}
+      delete orderData.cashOnDelivery
       const data = {
         total_amount: orderData.totalPrice,
         currency: "BDT",
@@ -759,6 +768,12 @@ async function run() {
           res.redirect(`${process.env.LIVE_URL}payment/fail`);
         }
       });
+    }
+    else{
+      orderData.paymentStatus = false
+      const result = await orderCollection.insertOne(orderData)
+      res.send(result)
+    }
     });
 
     // generate client secret

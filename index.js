@@ -75,24 +75,10 @@ async function run() {
       res.send(result);
     });
 
-    //dynamic city based restaurant api call
-    // app.get("/api/restaurants", async (req, res) => {
-    //   const location = req.query.location;
-    //   console.log(`city name: ${location}`);
-    //   if (!location) {
-    //     res.send([]);
-    //   }
-    //   // const query = { locationOfOutlet: location };
-    //   const query = {"locations.district": location};
-    //   const result = await partnerCollection.find(query).toArray();
-    //   res.send(result);
-    // });
-
     //Location based api call
     app.get("/api/searched-location/:searchQuery", async (req, res) => {
       try {
         const searchQuery = req.params.searchQuery;
-        console.log("Received searchQuery:", searchQuery);
 
         //I used $or operator to query for documents where any of the specified fields match the searchQuery.
         //I used regex operator to perform case insensitive search.
@@ -253,7 +239,6 @@ async function run() {
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
-        console.log(email);
         const partner = await partnerCollection.findOne({ email: email });
         if (!partner) {
           return res.status(404).json({ error: "Partner not found" });
@@ -371,7 +356,6 @@ async function run() {
 
     app.post("/partner", verifyJwt, async (req, res) => {
       const data = req.body;
-      console.log(data);
       const filter = { email: data?.email };
       const findUserusers = await usersCollection.findOne(filter);
       if (data.outletName) {
@@ -436,7 +420,6 @@ async function run() {
     // jwt apis
     app.post("/jwt", async (req, res) => {
       const email = req.body;
-      // console.log(req.decoded);
       const token = jwt.sign({ email }, process.env.JWT_SECRET, {
         expiresIn: "1h",
       });
@@ -445,7 +428,6 @@ async function run() {
     // users apis
     app.post("/users", async (req, res) => {
       const user = req.body;
-      // console.log(user);
       const findEmail = await usersCollection.findOne({ email: user.email });
       if (user.email == findEmail?.email) {
         return res.send({ message: "already exist " });
@@ -462,7 +444,6 @@ async function run() {
       try {
         const userId = req.params.id;
         const newRole = req.body.role;
-        console.log(userId, newRole);
         const result = await usersCollection.updateOne(
           { _id: new ObjectId(userId) },
           { $set: { role: newRole } }
@@ -498,7 +479,6 @@ async function run() {
     app.patch("/user/:email", async (req, res) => {
       const email = req.params.email;
       const data = req.body;
-      console.log(data);
       const filter = { email: email };
       const updateDoc = {
         $set: {
@@ -520,7 +500,6 @@ async function run() {
     app.patch("/unsubscribe/:email", async (req, res) => {
       const email = req.params.email;
       const data = req.body;
-      console.log(data);
       const filter = { email: email };
       const updateDoc = {
         $set: {
@@ -579,7 +558,6 @@ async function run() {
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
-      console.log(orderId);
       try {
         const objectId = new ObjectId(orderId);
 
@@ -635,7 +613,6 @@ async function run() {
       const is_live = false;
       const tranId = new ObjectId().toString();
       const orderData = req.body;
-      console.log(orderData);
 
       const data = {
         total_amount: orderData.totalPrice,
@@ -643,7 +620,7 @@ async function run() {
         tran_id: tranId, // use unique tran_id for each api call
         success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
         fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
-        cancel_url: "http://localhost:3030/cancel",
+        cancel_url: `${process.env.SERVER_URL}cancel`,
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
         product_name: "Computer.",
@@ -675,7 +652,6 @@ async function run() {
         orderData.delivery = "pending";
         const insertResult = await orderCollection.insertOne(orderData);
         if (insertResult.acknowledged) {
-          console.log("under if condition");
           let gatewayPageURL = apiResponse.GatewayPageURL;
           res.send({ url: gatewayPageURL });
         } else {

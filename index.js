@@ -637,7 +637,7 @@ async function run() {
     });
 
     // SSL commerce payment
-    const store_id = process.en.STORE_ID;
+    const store_id = process.env.STORE_ID;
     const store_password = process.env.STORE_PASSWORD;
     const is_live = false;
     const tranId = new ObjectId().toString();

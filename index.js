@@ -685,7 +685,7 @@ async function run() {
         tran_id: tranId, // use unique tran_id for each api call
         success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
         fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
-        cancel_url: "http://localhost:3030/cancel",
+        cancel_url: `${process.env.SERVER_URL}cancel/${tranId}`,
         ipn_url: "http://localhost:3030/ipn",
         shipping_method: "Courier",
         product_name: "Computer.",
@@ -712,9 +712,9 @@ async function run() {
 
       const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
       sslcz.init(data).then(async (apiResponse) => {
-        orderData._id = new ObjectId();
+        // orderData._id = new ObjectId();
         orderData.paymentStatus = false;
-        orderData.delivery = "pending";
+        orderData.transactionId = tranId;
         const insertResult = await orderCollection.insertOne(orderData);
         if (insertResult.acknowledged) {
           console.log("under if condition");
@@ -722,6 +722,16 @@ async function run() {
           res.send({ url: gatewayPageURL });
         } else {
           res.status(500).json({ message: "Failed to insert order" });
+        }
+      });
+
+      app.post("/cancel/:tranId", async (req, res) => {
+        const tranId = req.params.tranId;
+        const filter = { transactionId: tranId };
+        const result = await orderCollection.deleteOne(filter);
+        console.log(result)
+        if (result.deletedCount === 1) {
+          res.redirect(`${process.env.LIVE_URL}`);
         }
       });
 
@@ -736,8 +746,8 @@ async function run() {
           },
           {
             $set: {
+              delivery: "pending",
               paymentStatus: newPaymentStatus,
-              transactionId: tranId,
             },
           }
         );
@@ -748,11 +758,9 @@ async function run() {
 
       app.post("/payment/fail/:tranId", async (req, res) => {
         const tranId = req.params.tranId;
-        const result = await orderCollection.updateOne(
-          { tranjectionId: tranId },
-          { $pull: { order: { tranjectionId: tranId } } }
-        );
-        if (result.modifiedCount > 0) {
+        const filter = { transactionId: tranId };
+        const result = await orderCollection.deleteOne(filter);
+        if (result.deletedCount === 1) {
           res.redirect(`${process.env.LIVE_URL}payment/fail`);
         }
       });

@@ -607,7 +607,7 @@ async function run() {
         if (action === "accept") {
           deliveryStatus = "Received by Rider";
         } else if (action === "cancel") {
-          deliveryStatus = "Cancelled";
+          deliveryStatus = "pending";
         } else if (action === "delivered") {
           deliveryStatus = "Delivered";
         } else if (action === "decline") { 

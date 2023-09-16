@@ -75,24 +75,10 @@ async function run() {
       res.send(result);
     });
 
-    //dynamic city based restaurant api call
-    // app.get("/api/restaurants", async (req, res) => {
-    //   const location = req.query.location;
-    //   console.log(`city name: ${location}`);
-    //   if (!location) {
-    //     res.send([]);
-    //   }
-    //   // const query = { locationOfOutlet: location };
-    //   const query = {"locations.district": location};
-    //   const result = await partnerCollection.find(query).toArray();
-    //   res.send(result);
-    // });
-
     //Location based api call
     app.get("/api/searched-location/:searchQuery", async (req, res) => {
       try {
         const searchQuery = req.params.searchQuery;
-        console.log("Received searchQuery:", searchQuery);
 
         //I used $or operator to query for documents where any of the specified fields match the searchQuery.
         //I used regex operator to perform case insensitive search.
@@ -118,6 +104,15 @@ async function run() {
     app.get("/singleRestaurant/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
+      const result = await partnerCollection.findOne(query);
+      res.send(result);
+    });
+
+    //& Getting single restaurant data by partner email
+    app.get("/restaurant/partnerEmail", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const query = { email: email };
       const result = await partnerCollection.findOne(query);
       res.send(result);
     });
@@ -193,10 +188,14 @@ async function run() {
         filter.status = "pending";
       }
 
+      const sortOrder = -1;
       // Use the filter object in the find query if it's not empty
       const result = Object.keys(filter).length
-        ? await partnerCollection.find(filter).toArray()
-        : await partnerCollection.find().toArray();
+        ? await partnerCollection
+            .find(filter)
+            .sort({ date: sortOrder })
+            .toArray()
+        : await partnerCollection.find().sort({ date: sortOrder }).toArray();
 
       res.send(result);
     });
@@ -253,7 +252,6 @@ async function run() {
     app.get("/restaurant-data", async (req, res) => {
       try {
         const email = req.query.email;
-        console.log(email);
         const partner = await partnerCollection.findOne({ email: email });
         if (!partner) {
           return res.status(404).json({ error: "Partner not found" });
@@ -410,23 +408,51 @@ async function run() {
         }
       }
     });
-
-    //& Getting all the orders from the partner collection
-    app.get("/orders/partner", async (req, res) => {
+    //& Updating a restaurant info by it's id
+    app.put("/partner/:id", async (req, res) => {
+      const partnerId = req.params.id;
+      const data = req.body;
       try {
-        const partnerEmail = req.query.email;
+        const filter = { _id: new ObjectId(partnerId) };
+        const updatedDoc = {
+          $set: {
+            ...data,
+          },
+        };
+        const result = await partnerCollection.updateOne(filter, updatedDoc);
+        if (result.modifiedCount > 0) {
+          res.json({
+            success: true,
+            message: "Partner information updated successfully!",
+            result,
+          });
+        } else {
+          res
+            .status(404)
+            .json({ success: false, message: "Partner info not found" });
+        }
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+      }
+    });
+
+    //& Getting all the orders from the order collection by restaurant id
+    app.get("/orders/partner/:id", async (req, res) => {
+      try {
+        const restaurantId = req.params.id;
         const partnerOrders = await orderCollection
           .find({
-            ownerEmail: partnerEmail,
+            restaurantId: restaurantId,
           })
+          .sort({ orderTime: -1, orderDate: -1 })
           .toArray();
 
-        if (!partner) {
+        if (!partnerOrders) {
           return res.status(404).json({ message: "Partner not found" });
         }
-        const orders = partner.order;
 
-        res.json(orders);
+        res.json(partnerOrders);
       } catch (error) {
         console.error("Error:", error);
         res.status(500).json({ message: "Server error" });
@@ -436,7 +462,6 @@ async function run() {
     // jwt apis
     app.post("/jwt", async (req, res) => {
       const email = req.body;
-      // console.log(req.decoded);
       const token = jwt.sign({ email }, process.env.JWT_SECRET, {
         expiresIn: "1h",
       });
@@ -445,7 +470,6 @@ async function run() {
     // users apis
     app.post("/users", async (req, res) => {
       const user = req.body;
-      // console.log(user);
       const findEmail = await usersCollection.findOne({ email: user.email });
       if (user.email == findEmail?.email) {
         return res.send({ message: "already exist " });
@@ -462,7 +486,6 @@ async function run() {
       try {
         const userId = req.params.id;
         const newRole = req.body.role;
-        console.log(userId, newRole);
         const result = await usersCollection.updateOne(
           { _id: new ObjectId(userId) },
           { $set: { role: newRole } }
@@ -498,7 +521,6 @@ async function run() {
     app.patch("/user/:email", async (req, res) => {
       const email = req.params.email;
       const data = req.body;
-      console.log(data);
       const filter = { email: email };
       const updateDoc = {
         $set: {
@@ -520,7 +542,6 @@ async function run() {
     app.patch("/unsubscribe/:email", async (req, res) => {
       const email = req.params.email;
       const data = req.body;
-      console.log(data);
       const filter = { email: email };
       const updateDoc = {
         $set: {
@@ -579,7 +600,6 @@ async function run() {
     // Update delivery status when accepted by rider
     app.put("/api/orders/accept/:orderId", async (req, res) => {
       const { orderId } = req.params;
-      console.log(orderId);
       try {
         const objectId = new ObjectId(orderId);
 
@@ -628,121 +648,125 @@ async function run() {
       }
     });
 
-    // get specific user order data
-    app.get("/orders/:email", async (req, res) => {
-      const email = req.params.email;
-      const filter = { "customerData.email": email };
-      const result = await orderCollection.find(filter).toArray();
-      res.send(result);
-    });
-
     // SSL commerce payment
-    const store_id = process.env.STORE_ID;
-    const store_password = process.env.STORE_PASSWORD;
-    const is_live = false;
-    const tranId = new ObjectId().toString();
     app.post("/order", async (req, res) => {
+      const store_id = process.env.STORE_ID;
+      const store_password = process.env.STORE_PASSWORD;
+      const is_live = false;
+      const tranId = new ObjectId().toString();
       const orderData = req.body;
-      const id = orderData?.restaurantId;
 
-      const data = {
-        total_amount: orderData.totalPrice,
-        currency: "BDT",
-        tran_id: tranId, // use unique tran_id for each api call
-        success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
-        fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
-        cancel_url: "http://localhost:3030/cancel",
-        ipn_url: "http://localhost:3030/ipn",
-        shipping_method: "Courier",
-        product_name: "Computer.",
-        product_category: "Electronic",
-        product_profile: "general",
-        cus_name: orderData?.customerData?.name,
-        cus_email: orderData?.customerData?.email,
-        cus_add1: orderData?.homeAddress?.area,
-        cus_add2: orderData?.homeAddress?.upazila,
-        cus_city: orderData?.homeAddress?.district,
-        cus_state: orderData?.homeAddress?.district,
-        cus_postcode: "1000",
-        cus_country: "Bangladesh",
-        cus_phone: orderData?.customerData?.phone,
-        cus_fax: "01711111111",
-        ship_name: "Customer Name",
-        ship_add1: "Dhaka",
-        ship_add2: "Dhaka",
-        ship_city: "Dhaka",
-        ship_state: "Dhaka",
-        ship_postcode: 1000,
-        ship_country: "Bangladesh",
-      };
+      if (!orderData?.cashOnDelivery) {
+        //  const orderDate = {homeAddress : orderData?.homeAddress,
+        //   orderInfo: orderData?.orderInfo,
+        //   totalPrice:orderData?.totalPrice,
+        //   selectedTip:orderData?.selectedTip,
+        //   customerData : orderData?.customerData,
+        //   restaurantId : orderData?.restaurantId ,
+        //   orderDate: orderData?.orderData,}
+        delete orderData.cashOnDelivery;
+        const data = {
+          total_amount: orderData.totalPrice,
+          currency: "BDT",
+          tran_id: tranId, // use unique tran_id for each api call
+          success_url: `${process.env.SERVER_URL}payment/success/${tranId}`, //this is the reason why we need cant payment successfully from live site.....
+          fail_url: `${process.env.SERVER_URL}payment/fail/${tranId}`,
+          cancel_url: `${process.env.SERVER_URL}cancel/${tranId}`,
+          ipn_url: "http://localhost:3030/ipn",
+          shipping_method: "Courier",
+          product_name: "Computer.",
+          product_category: "Electronic",
+          product_profile: "general",
+          cus_name: orderData?.customerData?.name,
+          cus_email: orderData?.customerData?.email,
+          cus_add1: orderData?.homeAddress?.area,
+          cus_add2: orderData?.homeAddress?.upazila,
+          cus_city: orderData?.homeAddress?.district,
+          cus_state: orderData?.homeAddress?.district,
+          cus_postcode: "1000",
+          cus_country: "Bangladesh",
+          cus_phone: orderData?.customerData?.phone,
+          cus_fax: "01711111111",
+          ship_name: "Customer Name",
+          ship_add1: "Dhaka",
+          ship_add2: "Dhaka",
+          ship_city: "Dhaka",
+          ship_state: "Dhaka",
+          ship_postcode: 1000,
+          ship_country: "Bangladesh",
+        };
 
-      const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
-      sslcz.init(data).then(async (apiResponse) => {
-        const query = { _id: new ObjectId(id) };
-        const findRestaurant = await partnerCollection.findOne(query);
-        orderData._id = new ObjectId();
-        orderData.paymentStatus = false;
-        orderData.delivery = "pending";
-        const insertResult = await orderCollection.insertOne(orderData);
-        if (insertResult.acknowledged) {
-          console.log("under if condition");
-          let gatewayPageURL = apiResponse.GatewayPageURL;
-          res.send({ url: gatewayPageURL });
-        } else {
-          const existingOrder = findRestaurant.order || [];
-          const newOrder = [...existingOrder, orderData];
-
-          const result = await partnerCollection.updateOne(query, {
-            $set: { order: newOrder },
-          });
-
-          if (result.modifiedCount > 0) {
-            // Redirect the user to the payment gateway
-            let GatewayPageURL = apiResponse.GatewayPageURL;
-            res.send({ url: GatewayPageURL });
-            console.log("Redirecting to: ", GatewayPageURL);
+        const sslcz = new SSLCommerzPayment(store_id, store_password, is_live);
+        sslcz.init(data).then(async (apiResponse) => {
+          // orderData._id = new ObjectId();
+          orderData.paymentStatus = false;
+          orderData.transactionId = tranId;
+          const insertResult = await orderCollection.insertOne(orderData);
+          if (insertResult.acknowledged) {
+            console.log("under if condition");
+            let gatewayPageURL = apiResponse.GatewayPageURL;
+            res.send({ url: gatewayPageURL });
           } else {
-            // Handle the case where the update failed
-            res.status(500).json({ message: "Failed to update order" });
+            res.status(500).json({ message: "Failed to insert order" });
           }
-        }
-      });
+        });
 
-      app.post("/payment/success/:tranId", async (req, res) => {
-        const tranId = req.params.tranId;
-        // console.log(tranId);
-        const newPaymentStatus = true;
+        app.post("/cancel/:tranId", async (req, res) => {
+          const tranId = req.params.tranId;
+          const filter = { transactionId: tranId };
+          const result = await orderCollection.deleteOne(filter);
+          console.log(result);
+          if (result.deletedCount === 1) {
+            res.redirect(`${process.env.LIVE_URL}`);
+          }
+        });
 
-        const result = await partnerCollection.updateOne(
-          {
-            // _id: new ObjectId(resturenId),
-            transactionId: tranId,
-          },
-          {
-            $set: {
-              paymentStatus: newPaymentStatus,
+        app.post("/payment/success/:tranId", async (req, res) => {
+          const tranId = req.params.tranId;
+          const newPaymentStatus = true;
+
+          const result = await orderCollection.updateOne(
+            {
+              // _id: new ObjectId(resturenId),
               transactionId: tranId,
             },
+            {
+              $set: {
+                delivery: "pending",
+                paymentStatus: newPaymentStatus,
+              },
+            }
+          );
+          if (result && result.modifiedCount > 0) {
+            res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
           }
-        );
-        // console.log(result);
-        if (result && result.modifiedCount > 0) {
-          // res.redirect(`${process.env.LIVE_URL}payment/success/${tranId}`);
-          res.send();
-        }
-      });
-      app.post("/payment/fail/:tranId", async (req, res) => {
-        const tranId = req.params.tranId;
-        const result = await orderCollection.updateOne(
-          { tranjectionId: tranId },
-          { $pull: { order: { tranjectionId: tranId } } }
-        );
-        if (result.modifiedCount > 0) {
-          res.redirect(`${process.env.LIVE_URL}payment/fail`);
-        }
-      });
-    });
+        });
 
+        app.post("/payment/fail/:tranId", async (req, res) => {
+          const tranId = req.params.tranId;
+          const filter = { transactionId: tranId };
+          const result = await orderCollection.deleteOne(filter);
+          if (result.deletedCount === 1) {
+            res.redirect(`${process.env.LIVE_URL}payment/fail`);
+          }
+        });
+      } else {
+        orderData.paymentStatus = false;
+        const result = await orderCollection.insertOne(orderData);
+        res.send(result);
+      }
+    });
+    app.get("/orders", async (req, res) => {
+      const email = req.query.email;
+      const filter = { "customerData.email": email };
+      const result1 = await orderCollection.find(filter).toArray();
+      // const item = result1.map((item) => item.orderInfo);
+      // const paymenthis = item.map((itema) =>
+      //   itema.map((items) => items.orderId)
+      // );
+
+      res.send(result1);
+    });
     // generate client secret
     // stripe payment intent
     app.post("/create-payment-intent", async (req, res) => {

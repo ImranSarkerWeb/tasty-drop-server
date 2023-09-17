@@ -598,55 +598,42 @@ async function run() {
     });
 
     // Update delivery status when accepted by rider
-    app.put("/api/orders/accept/:orderId", async (req, res) => {
-      const { orderId } = req.params;
+    app.put("/api/orders/:action/:orderId", async (req, res) => {
+      const { action, orderId } = req.params;
       try {
         const objectId = new ObjectId(orderId);
-
-        // Update the delivery status to "Accepted by Rider"
-        const result = await orderCollection.updateOne(
-          { _id: objectId }, // Use "_id" instead of "order._id"
-          { $set: { delivery: "Received by Rider" } }
-        );
-
-        if (result.matchedCount === 0) {
-          return res.status(404).json({ message: "Order not found" });
+    
+        let deliveryStatus;
+        if (action === "accept") {
+          deliveryStatus = "Received by Rider";
+        } else if (action === "cancel") {
+          deliveryStatus = "Cancelled";
+        } else if (action === "delivered") {
+          deliveryStatus = "Delivered";
+        } else if (action === "decline") { 
+          deliveryStatus = "Declined by Rider";
         }
-
-        res
-          .status(200)
-          .json({ message: "Delivery status updated to Accepted by Rider" });
-      } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    });
-
-    // Update delivery status when declined by rider
-    app.put("/api/orders/decline/:orderId", async (req, res) => {
-      const { orderId } = req.params;
-
-      try {
-        const objectId = new ObjectId(orderId);
-
-        // Update the delivery status to "Declined by Rider"
+        else {
+          return res.status(400).json({ message: "Invalid action" });
+        }
+    
+        // Update the delivery status based on the dynamic action parameter
         const result = await orderCollection.updateOne(
           { _id: objectId },
-          { $set: { delivery: "Declined by Rider" } }
+          { $set: { delivery: deliveryStatus } }
         );
-
+    
         if (result.matchedCount === 0) {
           return res.status(404).json({ message: "Order not found" });
         }
-
-        res
-          .status(200)
-          .json({ message: "Delivery status updated to Declined by Rider" });
+    
+        res.status(200).json({ message: `Delivery status updated to ${deliveryStatus}` });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       }
     });
+    
 
     // SSL commerce payment
     app.post("/order", async (req, res) => {

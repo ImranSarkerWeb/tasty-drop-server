@@ -597,7 +597,7 @@ async function run() {
       res.send(result);
     });
 
-    // Update delivery status when accepted by rider
+    // Update delivery status of an order
     app.put("/api/orders/:action/:orderId", async (req, res) => {
       const { action, orderId } = req.params;
       try {

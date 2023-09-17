@@ -602,38 +602,22 @@ async function run() {
       const { action, orderId } = req.params;
       try {
         const objectId = new ObjectId(orderId);
-    
-        let deliveryStatus;
-        if (action === "accept") {
-          deliveryStatus = "Received by Rider";
-        } else if (action === "cancel") {
-          deliveryStatus = "Cancelled";
-        } else if (action === "delivered") {
-          deliveryStatus = "Delivered";
-        } else if (action === "decline") { 
-          deliveryStatus = "Declined by Rider";
-        }
-        else {
-          return res.status(400).json({ message: "Invalid action" });
-        }
-    
         // Update the delivery status based on the dynamic action parameter
         const result = await orderCollection.updateOne(
           { _id: objectId },
-          { $set: { delivery: deliveryStatus } }
+          { $set: { delivery: action } }
         );
     
         if (result.matchedCount === 0) {
           return res.status(404).json({ message: "Order not found" });
         }
     
-        res.status(200).json({ message: `Delivery status updated to ${deliveryStatus}` });
+        res.status(200).json({ message: `Delivery status updated to ${action}` });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       }
     });
-    
 
     // SSL commerce payment
     app.post("/order", async (req, res) => {

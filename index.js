@@ -599,7 +599,25 @@ async function run() {
       res.send(result);
     });
 
-    // Update delivery status when accepted by rider
+    //rider dashboard data
+    app.get('/api/rider-dashboard-data', async (req, res) => { 
+      const data = await orderCollection.find({delivery:"delivered"}).toArray();
+      const totalDeliveries = data.length;
+      const totalTips = data.reduce((acc, order) => acc + order.selectedTip, 0);
+      const totalEarnings = data.reduce((acc, order) => acc + order.totalPrice, 0);
+  
+      // Prepare and send the response
+      const responseData = {
+        data,
+        totalDeliveries,
+        totalTips,
+        totalEarnings,
+      };
+  
+      res.json(responseData);
+    })
+
+    // Update delivery status of an order
     app.put("/api/orders/:action/:orderId", async (req, res) => {
       const { action, orderId } = req.params;
       try {

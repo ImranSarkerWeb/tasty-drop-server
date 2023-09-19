@@ -88,6 +88,7 @@ async function run() {
               { "locations.district": { $regex: searchQuery, $options: "i" } },
               { "locations.upazila": { $regex: searchQuery, $options: "i" } },
             ],
+            status: "approved",
           })
           .toArray();
 

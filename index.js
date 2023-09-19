@@ -613,6 +613,7 @@ async function run() {
       };
   
       res.json(responseData);
+      // res.send(data);
     })
 
     // Update delivery status of an order

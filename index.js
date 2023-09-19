@@ -469,7 +469,7 @@ async function run() {
       res.send({ token });
     });
     // users apis
-    app.post("/users", verifyJwt, async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
       const findEmail = await usersCollection.findOne({ email: user.email });
       if (user.email == findEmail?.email) {

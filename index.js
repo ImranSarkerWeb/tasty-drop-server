@@ -56,7 +56,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const usersCollection = client.db("tastyDB").collection("users");
     const reviewCollection = client.db("tastyDB").collection("reviews");
@@ -440,11 +440,12 @@ async function run() {
     app.get("/orders/partner/:id", async (req, res) => {
       try {
         const restaurantId = req.params.id;
+        const sort = { orderDate: -1 };
         const partnerOrders = await orderCollection
           .find({
             restaurantId: restaurantId,
           })
-          .sort({ orderTime: -1, orderDate: -1 })
+          .sort(sort)
           .toArray();
 
         if (!partnerOrders) {
@@ -592,7 +593,8 @@ async function run() {
 
     //all order data....
     app.get("/api/orders", async (req, res) => {
-      const result = await orderCollection.find().toArray();
+      const sort = { orderDate: -1 };
+      const result = await orderCollection.find().sort(sort).toArray();
       res.send(result);
     });
 

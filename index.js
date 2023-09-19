@@ -62,13 +62,12 @@ async function run() {
     const reviewCollection = client.db("tastyDB").collection("reviews");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
-    const customerCollection = client.db("tastyDB").collection("customer");
     const businessCollection = client.db("tastyDB").collection("business");
     const divisionCollection = client.db("tastyDB").collection("division");
     const districtsCollection = client.db("tastyDB").collection("districts");
     const upazilasCollection = client.db("tastyDB").collection("upazilas");
     const orderCollection = client.db("tastyDB").collection("orders");
-
+    const notesCollection = client.db("tastyDB").collection("notes");
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
       const result = await cursor.toArray();
@@ -598,12 +597,17 @@ async function run() {
     });
 
     //rider dashboard data
-    app.get('/api/rider-dashboard-data', async (req, res) => { 
-      const data = await orderCollection.find({delivery:"delivered"}).toArray();
+    app.get("/api/rider-dashboard-data", async (req, res) => {
+      const data = await orderCollection
+        .find({ delivery: "delivered" })
+        .toArray();
       const totalDeliveries = data.length;
       const totalTips = data.reduce((acc, order) => acc + order.selectedTip, 0);
-      const totalEarnings = data.reduce((acc, order) => acc + order.totalPrice, 0);
-  
+      const totalEarnings = data.reduce(
+        (acc, order) => acc + order.totalPrice,
+        0
+      );
+
       // Prepare and send the response
       const responseData = {
         data,
@@ -611,9 +615,9 @@ async function run() {
         totalTips,
         totalEarnings,
       };
-  
+
       res.json(responseData);
-    })
+    });
 
     // Update delivery status of an order
     app.put("/api/orders/:action/:orderId", async (req, res) => {
@@ -625,16 +629,39 @@ async function run() {
           { _id: objectId },
           { $set: { delivery: action } }
         );
-    
+
         if (result.matchedCount === 0) {
           return res.status(404).json({ message: "Order not found" });
         }
-    
-        res.status(200).json({ message: `Delivery status updated to ${action}` });
+
+        res
+          .status(200)
+          .json({ message: `Delivery status updated to ${action}` });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       }
+    });
+
+    // notes apis
+    app.post("/notes", async (req, res) => {
+      const data = req.body;
+      const result = await notesCollection.insertOne(data);
+      res.send(result);
+    });
+
+    app.get("/notes/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await notesCollection.find({ email: email }).toArray();
+      const reverse = result.reverse();
+      res.send(reverse);
+    });
+
+    app.delete("/notes/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await notesCollection.deleteOne(filter);
+      res.send(result);
     });
 
     // SSL commerce payment

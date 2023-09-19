@@ -468,7 +468,7 @@ async function run() {
       res.send({ token });
     });
     // users apis
-    app.post("/users", async (req, res) => {
+    app.post("/users", verifyJwt, async (req, res) => {
       const user = req.body;
       const findEmail = await usersCollection.findOne({ email: user.email });
       if (user.email == findEmail?.email) {
@@ -602,7 +602,7 @@ async function run() {
       const { action, orderId } = req.params;
       try {
         const objectId = new ObjectId(orderId);
-    
+
         let deliveryStatus;
         if (action === "accept") {
           deliveryStatus = "Received by Rider";
@@ -610,30 +610,30 @@ async function run() {
           deliveryStatus = "Cancelled";
         } else if (action === "delivered") {
           deliveryStatus = "Delivered";
-        } else if (action === "decline") { 
+        } else if (action === "decline") {
           deliveryStatus = "Declined by Rider";
-        }
-        else {
+        } else {
           return res.status(400).json({ message: "Invalid action" });
         }
-    
+
         // Update the delivery status based on the dynamic action parameter
         const result = await orderCollection.updateOne(
           { _id: objectId },
           { $set: { delivery: deliveryStatus } }
         );
-    
+
         if (result.matchedCount === 0) {
           return res.status(404).json({ message: "Order not found" });
         }
-    
-        res.status(200).json({ message: `Delivery status updated to ${deliveryStatus}` });
+
+        res
+          .status(200)
+          .json({ message: `Delivery status updated to ${deliveryStatus}` });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       }
     });
-    
 
     // SSL commerce payment
     app.post("/order", async (req, res) => {
@@ -747,12 +747,80 @@ async function run() {
       const email = req.query.email;
       const filter = { "customerData.email": email };
       const result1 = await orderCollection.find(filter).toArray();
-      // const item = result1.map((item) => item.orderInfo);
-      // const paymenthis = item.map((itema) =>
-      //   itema.map((items) => items.orderId)
-      // );
-     
-      res.send(result1);
+      const result = await partnerCollection.find().toArray();
+      // const newArray = []
+
+      const restaurantIds = result1.map((item) => item.restaurantId);
+
+      const filteredResult = result.filter((item) =>
+        restaurantIds.includes(item._id.toString())
+      );
+      const updatedResult1 = result1.map((item1) => {
+        const matchingItem = filteredResult.find(
+          (item2) => item1.restaurantId === item2._id.toString()
+        );
+        if (matchingItem) {
+          // Copy the properties from matchingItem into item1
+          return {
+            ...item1,
+            outletName: matchingItem.outletName,
+            photo: matchingItem.photo,
+          };
+        }
+        return item1;
+      });
+
+      res.send(updatedResult1);
+    });
+    //review and rating
+    app.post("/review", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      try {
+        await reviewCollection.insertOne(data);
+        const filter = { _id: new ObjectId(data.restaurantId) };
+        const isExist = await partnerCollection.findOne(filter);
+
+        if (!isExist.review) {
+          const updateDoc = {
+            $set: {
+              review: {
+                ratingT: data.rating,
+                customer: 1,
+                rating: data?.rating
+              },
+            },
+          };
+          await partnerCollection.updateOne(filter, updateDoc);
+        } else {
+          const updateDoc = {
+            $set: {
+              "review.ratingT": isExist.review.ratingT + data.rating,
+              "review.customer": isExist.review.customer + 1,
+              "review.rating": parseFloat(((isExist.review.ratingT)/isExist.review.customer)).toFixed(1)
+            },
+          };
+          await partnerCollection.updateOne(filter, updateDoc);
+        }
+
+        // Send a success response to the client
+        res.status(200).json({ message: "Review added successfully" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+    app.get("/review/:id", verifyJwt, async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { OrderId: id };
+      await reviewCollection.findOne(filter).then((item) => {
+        if (!item) {
+          return res.status(404).json({ error: "No Profile Found" });
+        } else {
+          res.send(item);
+        }
+      });
     });
     // generate client secret
     // stripe payment intent

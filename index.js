@@ -618,9 +618,10 @@ async function run() {
         totalTips,
         totalEarnings,
       };
-
+  
       res.json(responseData);
-    });
+      // res.send(data);
+    })
 
     // Update delivery status of an order
     app.put("/api/orders/:action/:orderId", async (req, res) => {

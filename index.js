@@ -802,7 +802,7 @@ async function run() {
               review: {
                 ratingT: data.rating,
                 customer: 1,
-                rating: data?.rating,
+                rating: parseFloat(data?.rating).toFixed(1), // Converting string into number
               },
             },
           };
@@ -813,8 +813,9 @@ async function run() {
               "review.ratingT": isExist.review.ratingT + data.rating,
               "review.customer": isExist.review.customer + 1,
               "review.rating": parseFloat(
-                isExist.review.ratingT / isExist.review.customer
-              ).toFixed(1),
+                (isExist.review.ratingT + data.rating) /
+                  (isExist.review.customer + 1)
+              ).toFixed(1), // Calculating average rating
             },
           };
           await partnerCollection.updateOne(filter, updateDoc);
@@ -827,7 +828,7 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
-    // Getting review by id/
+    // Getting review by id
     app.get("/review/:id", verifyJwt, async (req, res) => {
       const id = req.params.id;
       console.log(id);

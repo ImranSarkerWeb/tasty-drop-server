@@ -88,6 +88,7 @@ async function run() {
               { "locations.district": { $regex: searchQuery, $options: "i" } },
               { "locations.upazila": { $regex: searchQuery, $options: "i" } },
             ],
+            status: "approved",
           })
           .toArray();
 
@@ -785,6 +786,60 @@ async function run() {
       // );
 
       res.send(result1);
+    });
+
+    //review and rating
+    app.post("/review", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      try {
+        await reviewCollection.insertOne(data);
+        const filter = { _id: new ObjectId(data.restaurantId) };
+        const isExist = await partnerCollection.findOne(filter);
+
+        if (!isExist.review) {
+          const updateDoc = {
+            $set: {
+              review: {
+                ratingT: data.rating,
+                customer: 1,
+                rating: data?.rating,
+              },
+            },
+          };
+          await partnerCollection.updateOne(filter, updateDoc);
+        } else {
+          const updateDoc = {
+            $set: {
+              "review.ratingT": isExist.review.ratingT + data.rating,
+              "review.customer": isExist.review.customer + 1,
+              "review.rating": parseFloat(
+                isExist.review.ratingT / isExist.review.customer
+              ).toFixed(1),
+            },
+          };
+          await partnerCollection.updateOne(filter, updateDoc);
+        }
+
+        // Send a success response to the client
+        res.status(200).json({ message: "Review added successfully" });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
+    // Getting review by id/
+    app.get("/review/:id", verifyJwt, async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const filter = { OrderId: id };
+      await reviewCollection.findOne(filter).then((item) => {
+        if (!item) {
+          return res.status(404).json({ error: "No Profile Found" });
+        } else {
+          res.send(item);
+        }
+      });
     });
     // generate client secret
     // stripe payment intent

@@ -186,6 +186,8 @@ async function run() {
       // If "status" query parameter is provided, add it to the filter
       if (status === "pending") {
         filter.status = "pending";
+      } else {
+        filter.status = "approved";
       }
 
       const sortOrder = -1;
@@ -618,10 +620,9 @@ async function run() {
         totalTips,
         totalEarnings,
       };
-  
+
       res.json(responseData);
-      // res.send(data);
-    })
+    });
 
     // Update delivery status of an order
     app.put("/api/orders/:action/:orderId", async (req, res) => {

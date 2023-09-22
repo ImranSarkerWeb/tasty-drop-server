@@ -62,13 +62,12 @@ async function run() {
     const reviewCollection = client.db("tastyDB").collection("reviews");
     const riderCollection = client.db("tastyDB").collection("rider");
     const partnerCollection = client.db("tastyDB").collection("partner");
-    const customerCollection = client.db("tastyDB").collection("customer");
     const businessCollection = client.db("tastyDB").collection("business");
     const divisionCollection = client.db("tastyDB").collection("division");
     const districtsCollection = client.db("tastyDB").collection("districts");
     const upazilasCollection = client.db("tastyDB").collection("upazilas");
     const orderCollection = client.db("tastyDB").collection("orders");
-
+    const notesCollection = client.db("tastyDB").collection("notes");
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
       const result = await cursor.toArray();
@@ -89,6 +88,7 @@ async function run() {
               { "locations.district": { $regex: searchQuery, $options: "i" } },
               { "locations.upazila": { $regex: searchQuery, $options: "i" } },
             ],
+            status: "approved",
           })
           .toArray();
 
@@ -186,6 +186,8 @@ async function run() {
       // If "status" query parameter is provided, add it to the filter
       if (status === "pending") {
         filter.status = "pending";
+      } else {
+        filter.status = "approved";
       }
 
       const sortOrder = -1;
@@ -600,12 +602,17 @@ async function run() {
     });
 
     //rider dashboard data
-    app.get('/api/rider-dashboard-data', async (req, res) => { 
-      const data = await orderCollection.find({delivery:"delivered"}).toArray();
+    app.get("/api/rider-dashboard-data", async (req, res) => {
+      const data = await orderCollection
+        .find({ delivery: "delivered" })
+        .toArray();
       const totalDeliveries = data.length;
       const totalTips = data.reduce((acc, order) => acc + order.selectedTip, 0);
-      const totalEarnings = data.reduce((acc, order) => acc + order.totalPrice, 0);
-  
+      const totalEarnings = data.reduce(
+        (acc, order) => acc + order.totalPrice,
+        0
+      );
+
       // Prepare and send the response
       const responseData = {
         data,
@@ -613,9 +620,9 @@ async function run() {
         totalTips,
         totalEarnings,
       };
-  
+
       res.json(responseData);
-    })
+    });
 
     // Update delivery status of an order
     app.put("/api/orders/:action/:orderId", async (req, res) => {
@@ -631,12 +638,35 @@ async function run() {
         if (result.matchedCount === 0) {
           return res.status(404).json({ message: "Order not found" });
         }
-    
-        res.status(200).json({ message: `Delivery status updated to ${action}` });
+
+        res
+          .status(200)
+          .json({ message: `Delivery status updated to ${action}` });
       } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
       }
+    });
+
+    // notes apis
+    app.post("/notes", async (req, res) => {
+      const data = req.body;
+      const result = await notesCollection.insertOne(data);
+      res.send(result);
+    });
+
+    app.get("/notes/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await notesCollection.find({ email: email }).toArray();
+      const reverse = result.reverse();
+      res.send(reverse);
+    });
+
+    app.delete("/notes/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await notesCollection.deleteOne(filter);
+      res.send(result);
     });
 
     // SSL commerce payment
@@ -751,31 +781,14 @@ async function run() {
       const email = req.query.email;
       const filter = { "customerData.email": email };
       const result1 = await orderCollection.find(filter).toArray();
-      const result = await partnerCollection.find().toArray();
-      // const newArray = []
+      // const item = result1.map((item) => item.orderInfo);
+      // const paymenthis = item.map((itema) =>
+      //   itema.map((items) => items.orderId)
+      // );
 
-      const restaurantIds = result1.map((item) => item.restaurantId);
-
-      const filteredResult = result.filter((item) =>
-        restaurantIds.includes(item._id.toString())
-      );
-      const updatedResult1 = result1.map((item1) => {
-        const matchingItem = filteredResult.find(
-          (item2) => item1.restaurantId === item2._id.toString()
-        );
-        if (matchingItem) {
-          // Copy the properties from matchingItem into item1
-          return {
-            ...item1,
-            outletName: matchingItem.outletName,
-            photo: matchingItem.photo,
-          };
-        }
-        return item1;
-      });
-
-      res.send(updatedResult1);
+      res.send(result1);
     });
+
     //review and rating
     app.post("/review", async (req, res) => {
       const data = req.body;
@@ -791,7 +804,7 @@ async function run() {
               review: {
                 ratingT: data.rating,
                 customer: 1,
-                rating: data?.rating
+                rating: parseFloat(data?.rating).toFixed(1), // Converting string into number
               },
             },
           };
@@ -801,7 +814,10 @@ async function run() {
             $set: {
               "review.ratingT": isExist.review.ratingT + data.rating,
               "review.customer": isExist.review.customer + 1,
-              "review.rating": parseFloat(((isExist.review.ratingT)/isExist.review.customer)).toFixed(1)
+              "review.rating": parseFloat(
+                (isExist.review.ratingT + data.rating) /
+                  (isExist.review.customer + 1)
+              ).toFixed(1), // Calculating average rating
             },
           };
           await partnerCollection.updateOne(filter, updateDoc);
@@ -814,6 +830,7 @@ async function run() {
         res.status(500).json({ error: "Internal server error" });
       }
     });
+    // Getting review by id
     app.get("/review/:id", verifyJwt, async (req, res) => {
       const id = req.params.id;
       console.log(id);

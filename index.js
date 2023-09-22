@@ -51,7 +51,6 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
-// console.log(process.env.JWT_SECRET)
 
 async function run() {
   try {

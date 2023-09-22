@@ -51,7 +51,6 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
-// console.log(process.env.JWT_SECRET)
 
 async function run() {
   try {
@@ -780,7 +779,8 @@ async function run() {
     app.get("/orders", async (req, res) => {
       const email = req.query.email;
       const filter = { "customerData.email": email };
-      const result1 = await orderCollection.find(filter).toArray();
+      const sort = { orderDate: -1 };
+      const result1 = await orderCollection.find(filter).sort(sort).toArray();
       // const item = result1.map((item) => item.orderInfo);
       // const paymenthis = item.map((itema) =>
       //   itema.map((items) => items.orderId)

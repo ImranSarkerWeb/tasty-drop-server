@@ -122,7 +122,7 @@ async function run() {
       res.send(result);
     });
 
-    // business apis
+    // business api
     app.post("/business", verifyJwt, async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
@@ -147,7 +147,7 @@ async function run() {
         res.send(result4);
       }
     });
-    // rider apis
+    // rider api
     app.post("/rider", verifyJwt, async (req, res) => {
       const data = req.body;
       const filter = { email: data?.email };
